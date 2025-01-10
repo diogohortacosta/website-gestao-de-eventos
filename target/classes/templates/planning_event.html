@@ -1,0 +1,2604 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/html">
+    <head>
+        <meta charset="UTF-8">
+        <title>Planear</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css' rel='stylesheet'>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+        <meta name="_csrf_header" th:content="${_csrf.getHeaderName()}" />
+        <meta name="_csrf" th:content="${_csrf.getToken()}" />
+
+        <!--- STYLE --->
+        <style>
+            #nav {
+                display: flex;
+                justify-content: space-around;
+                background: #555555;
+            }
+            #nav a {
+                color: #ffffff;
+                text-decoration: none;
+                padding: 10px;
+            }
+            .event-info {
+                background: #eaeaea;
+                padding: 15px;
+                border-radius: 10px;
+                position: relative;
+            }
+            .log-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
+            #logsModal .table-container {
+                overflow-x: auto;
+                max-height: 300px;
+                min-height: 300px;
+                border: 1px solid #dee2e6;
+                border-radius: 0.25rem;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                position: relative;
+            }
+            #logsModal .table {
+                width: 100%;
+                border-collapse: collapse;
+                user-select: none;
+            }
+            #logsModal .table th {
+                position: sticky;
+                top: -1px;
+                z-index: 1;
+                background-color: #f8f9fa;
+            }
+            #logsModal .table th, #logsModal .table td {
+                padding: 10px;
+                text-align: left;
+            }
+            .json-data {
+                max-width: 200px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                position: relative;
+                cursor: pointer;
+            }
+            .json-data.expanded {
+                white-space: pre-wrap;
+                max-width: none;
+            }
+            #logsModal tr:hover {
+                background-color: #f0f0f0;
+            }
+            .pagination-container {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .pagination-container .btn {
+                margin-top: 10px;
+            }
+            .pagination-container span {
+                font-size: 1.1em;
+            }
+            #editorDropdown, #statusDropdown {
+                display: none;
+                position: absolute;
+                background-color: #f9f9f9;
+                box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+                padding: 10px;
+                z-index: 1;
+                width: 250px;
+            }
+            .dropdown-content-editor, .dropdown-content-status {
+                max-height: 200px;
+                overflow-y: auto;
+                overflow-x: auto;
+            }
+            .dropdown-content-editor label, .dropdown-content-status label {
+                white-space: nowrap;
+                display: block;
+            }
+            #editorDropdown input[type="checkbox"], #statusDropdown input[type="checkbox"] {
+                margin-right: 8px;
+            }
+            #saveEditors, #saveStatus {
+                width: 100%;
+                padding: 10px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+                margin-top: 10px;
+                transition: background-color 0.3s;
+            }
+            #saveEditors:hover {
+                background-color: #45a049;
+            }
+            .search-container {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+            #searchInput {
+                width: 100%;
+                padding: 5px;
+                font-size: 16px;
+                box-sizing: border-box;
+            }
+            #clearSearch {
+                display: none;
+                position: absolute;
+                right: 5px;
+                cursor: pointer;
+                font-size: 18px;
+                background: none;
+                border: none;
+                color: #999;
+            }
+            .planning-form-container, .activity-form-container {
+                background-color: #ffffff;
+                padding: 15px;
+                border-radius: 10px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                margin: 20px auto;
+            }
+            .planning-form-container form, .activity-form-container form {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+                align-items: center;
+            }
+            .planning-form-container form label, .activity-form-container form label {
+                font-weight: 500;
+                color: #333;
+                margin-right: 5px;
+                font-size: 14px;
+            }
+            .planning-form-container form input[type="text"], .planning-form-container form input[type="time"], .planning-form-container form select,
+            .activity-form-container form input[type="text"], .activity-form-container form input[type="time"], .activity-form-container form select {
+                padding: 6px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                font-size: 14px;
+                width: 150px;
+            }
+            .planning-form-container form button, .activity-form-container form button {
+                background-color: #007BFF;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 5px;
+                font-size: 14px;
+                cursor: pointer;
+                margin-left: auto;
+            }
+            .planning-form-container form button:hover, .activity-form-container form button:hover {
+                background-color: #0056b3;
+            }
+            .error-message {
+                color: red;
+                font-size: 12px;
+                flex-basis: 100%;
+            }
+            .planning-container .table-container {
+                display: flex;
+                overflow-y: auto;
+                max-height: 500px;
+                margin: 20px 0;
+                border-radius: 10px;
+            }
+            .planning-container table {
+                background-color: #ffffff;
+                border-collapse: collapse;
+                width: 100%;
+                margin: 0;
+                font-family: Arial, sans-serif;
+            }
+            .planning-container th, td {
+                padding: 10px;
+                text-align: center;
+                position: relative;
+                z-index: 0;
+            }
+            .planning-container tr, .day, .task {
+                border: 1px solid #dddddd;
+            }
+            .task {
+                background-color: #d5dbdb;
+            }
+            .day {
+                text-align: left !important;
+                background-color: #f9f9f9;
+                font-weight: bold;
+                color: #333;
+            }
+            .hour {
+                padding: 5px 10px;
+                border: 1px dashed #999;
+                background-color: #f1f1f1;
+            }
+            .occupied {
+                position: relative;
+                background-color: #a0e0ff;
+                transition: background-color 0.3s ease;
+            }
+            .occupied::before, .occupied::after {
+                content: "";
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                background: #ffffff;
+                z-index: -1;
+            }
+            .occupied::before {
+                left: 0;
+                width: 0;
+                border-right: 1px solid black;
+            }
+            .occupied::after {
+                right: 0;
+                width: 0;
+                border-left: 1px solid black;
+            }
+            .planning-table .occupied:hover {
+                background-color: #90c9e5;
+            }
+            .activity-container {
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                overflow-y: hidden;
+                gap: 20px;
+            }
+            .activity-container > div {
+                min-width: 250px;
+                flex: 0 0 auto;
+                border: 1px solid #ccc;
+                border-radius: 10px;
+                padding: 15px;
+                background-color: #f0f0f0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .ulTitle {
+                margin: 0 0 10px 0;
+                font-size: 20px;
+                font-weight: bold;
+                color: #333;
+                text-align: center;
+            }
+            .board {
+                list-style-type: none;
+                padding: 0;
+            }
+            .activity {
+                padding: 15px;
+                margin: 10px 0;
+                background-color: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                cursor: grab;
+                position: relative;
+            }
+            .activity-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 18px;
+                font-weight: bold;
+                color: #555;
+            }
+            .toggle-btn {
+                background-color: #008CBA;
+                border: none;
+                border-radius: 5px;
+                color: white;
+                padding: 5px 10px;
+                font-size: 12px;
+                cursor: pointer;
+                margin-left: 10px;
+            }
+            .toggle-btn:hover {
+                background-color: #005f6b;
+            }
+            .scrollable {
+                height: 240px;
+                overflow-y: auto;
+            }
+            .sub-activities {
+                list-style-type: none;
+                padding: 10px;
+                margin-top: 10px;
+                background-color: #f8f8f8;
+                border-top: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            .sub-activities li {
+                display: flex;
+                align-items: center;
+                padding: 5px 0;
+                margin: 5px 0;
+                font-size: 14px;
+                border-bottom: 1px solid #eee;
+            }
+            .sub-activities li:last-child {
+                border-bottom: none;
+            }
+            .sub-check {
+                margin-right: 10px;
+            }
+            .sub-activities li.checked {
+                text-decoration: line-through;
+                color: gray;
+            }
+            .board li.dragging {
+                opacity: 0.5;
+            }
+            .add-subactivity {
+                margin-top: 10px;
+                display: flex;
+                align-items: center;
+            }
+            .new-subactivity-input {
+                width: 70%;
+                padding: 5px;
+                font-size: 14px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }
+            .add-subactivity-btn {
+                background-color: #28a745;
+                border: none;
+                border-radius: 5px;
+                color: white;
+                padding: 6px 12px;
+                font-size: 14px;
+                cursor: pointer;
+                margin-left: 10px;
+            }
+            .add-subactivity-btn:hover {
+                background-color: #218838;
+            }
+            #activity-menu {
+                display: none;
+                position: absolute;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+            #activity-menu ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            #activity-menu ul li {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+            #activity-menu ul li:hover {
+                background-color: #ddd;
+            }
+
+            #sub-activity-menu {
+                display: none;
+                position: absolute;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+            #sub-activity-menu ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            #sub-activity-menu ul li {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+            #sub-activity-menu ul li:hover {
+                background-color: #ddd;
+            }
+            #task-menu {
+                display: none;
+                position: absolute;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+            #task-menu ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            #task-menu ul li {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+            #task-menu ul li:hover {
+                background-color: #ddd;
+            }
+            #activity-menu {
+                display: none;
+                position: absolute;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+            #activity-menu ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            #activity-menu ul li {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+            #activity-menu ul li:hover {
+                background-color: #ddd;
+            }
+            footer {
+                left: 0;
+                bottom: 0;
+                width: 100%;
+            }
+        </style>
+        <style th:if="${canEdit == false}">
+            .activity-container li {
+                cursor: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <!--- HEADER --->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Projeto</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/home}">| Home |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/calendar}">| Calendar |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/chat}">| Chat |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/logout}">| Logout |</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        <nav id="nav">
+            <a href="#event">
+                <i class="bi bi-pencil-square"></i> Info
+            </a>
+            <a href="#planning">
+                <i class="bi bi-calendar-event"></i> Planning
+            </a>
+            <a href="#managing">
+                <i class="bi bi-clipboard"></i> Managing
+            </a>
+        </nav>
+        <!--- BODY --->
+        <div class="connecting" style="text-align: center"></div>
+        <div class="row" style="margin: 10px;">
+            <section id="event">
+                <!--- EVENT HEADER --->
+                <div class="header">
+                    <h1>Event Info</h1>
+                </div>
+                <!--- EVENT BODY --->
+                <div class="event-container">
+                    <div class="event-info">
+                        <button th:if="${event.getExtendedProps().creator == username}" type="button" class="btn btn-primary log-btn" data-bs-toggle="modal" data-bs-target="#logsModal">
+                            <i class="bi bi-clock-history"> Logs</i>
+                        </button>
+                        <p><strong>Criator: </strong> <span th:text="${event.getExtendedProps().creator}">text</span></p>
+                        <p><strong>Editors: </strong> <span id="eventEditors" th:text="${editorsString}">text</span> <a href="#" id="addEditorLink" th:if="${event.getExtendedProps().creator == username}">+ add editor</a></p>
+                        <div id="editorDropdown" class="dropdown" th:if="${event.getExtendedProps().creator == username}">
+                            <div class="search-container">
+                                <input type="text" id="searchInput" placeholder="Search username..." onkeyup="filterUsers()">
+                                <button id="clearSearch" onclick="clearSearchInput()">×</button>
+                            </div>
+                            <div class="dropdown-content-editor">
+                                <label th:each="username : ${listUsernames}" class="editor"><input type="checkbox" th:value="${username}" th:text="${username}"></label>
+                            </div>
+                            <button id="saveEditors">Save</button>
+                        </div>
+                        <p><strong>Title: </strong> <span th:text="${event.title}">text</span></p>
+                        <p><strong>Description: </strong> <span th:text="${event.getExtendedProps().description}">text</span></p>
+                        <p><strong>Status: </strong> <span id="eventStatus" th:text="${event.getExtendedProps().status}">text</span> <a href="#" id="changeStatusLink" th:if="${canEdit == true}">+ change status</a></p>
+                        <div id="statusDropdown" class="dropdown" th:if="${canEdit == true}">
+                            <div class="dropdown-content-status">
+                                <label class="status"><input type="checkbox" value="Pending">Pending</label>
+                                <label class="status"><input type="checkbox" value="Inprogress">Inprogress</label>
+                                <label class="status"><input type="checkbox" value="Confirmed">Confirmed</label>
+                                <label class="status"><input type="checkbox" value="Finished">Finished</label>
+                                <label class="status"><input type="checkbox" value="Canceled">Canceled</label>
+                                <label class="status"><input type="checkbox" value="Rescheduled">Rescheduled</label>
+                            </div>
+                            <button id="saveStatus">Save</button>
+                        </div>
+                        <p><strong>Start Date: </strong> <span th:text="${event.start}">date</span>
+                            <strong> End Date: </strong> <span th:text="${event.end}">date</span>
+                            <strong> Duration: </strong><span th:text="${eventDuration}">text</span></p>
+                    </div>
+                </div>
+            </section>
+            <section id="planning">
+                <!--- PLANNING HEADER --->
+                <div class="header">
+                    <h1>Event Planning</h1>
+                </div>
+                <!--- PLANNING FORM --->
+                <div class="planning-form-container" th:if="${canEdit == true}">
+                    <form id="planningForm">
+                        <div id="error-message" class="error-message"></div>
+
+                        <label for="planningName">Title:</label>
+                        <input type="text" id="planningName" placeholder="Task Title" required>
+
+                        <label for="date-start">Start Date:</label>
+                        <select id="date-start" name="date-start" required>
+                            <option th:each="date : ${dateList}" th:value="${date.date}" th:text="${date.date}"></option>
+                        </select>
+
+                        <label for="time-start">Start Hour:</label>
+                        <input type="time" id="time-start" required>
+
+                        <label for="date-end">End Date:</label>
+                        <select id="date-end" name="date-end" required>
+                            <option th:each="date : ${dateList}" th:value="${date.date}" th:text="${date.date}"></option>
+                        </select>
+
+                        <label for="time-end">End Hour:</label>
+                        <input type="time" id="time-end" required>
+
+                        <button type="submit">Add Task</button>
+                    </form>
+                </div>
+                <!--- PLANNING BODY --->
+                <div class="planning-container">
+                    <div class="table-container">
+                        <table class="planning-table">
+                            <thead>
+                                <tr>
+                                    <th class="task">Day</th>
+                                    <th class="day" th:each="date : ${dateList}" th:colspan="${date.colspan}" th:text="${date.date}"></th>
+                                </tr>
+                                <tr>
+                                    <th class="task">Task</th>
+                                    <th class="hour" th:each="hour : ${hourList}" th:text="${hour}"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="task-tbody">
+                                <tr th:if="${tasks.size() == 0}">
+                                    <td class="task">No tasks available</td>
+                                </tr>
+                                <tr th:if="${tasks.size() > 0}" th:each="task : ${tasks}">
+                                    <td class="task" th:text="${task.title}"></td>
+                                    <td th:if="${task.beforeColspan == -1 && task.colspan == -1}" class="error" th:attr="task-id=${task.id}, task-title=${task.title}, date-start=${task.startDate}, date-end=${task.endDate}, hour-start=${task.startTime}, hour-end=${task.endTime}"><button onclick="editError(this)" type="button" class="btn btn-danger"><i class="bi bi-exclamation-triangle"></i> Edit</button></td>
+                                    <td th:if="${task.beforeColspan} > 0" class="blank" th:colspan="${task.beforeColspan}"></td>
+                                    <td th:if="${task.colspan} > 0"
+                                        class="occupied" th:colspan="${task.colspan}"
+                                        th:attr="task-id=${task.id}, task-title=${task.title}, date-start=${task.startDate}, date-end=${task.endDate}, hour-start=${task.startTime}, hour-end=${task.endTime}"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-html="true"
+                                        data-bs-placement="bottom"
+                                        th:title="'Task: ' + ${task.title} + '<br>Start: ' + ${task.startDate} + ' '  + ${task.startTime} + '<br>End: ' + ${task.endDate} + ' ' + ${task.endTime}"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <section id="managing">
+                <!--- ACTIVITY HEADER --->
+                <div class="header">
+                    <h1>Event Managing</h1>
+                </div>
+                <!--- ACTIVITY FORM --->
+                <div class="activity-form-container" th:if="${canEdit}">
+                    <form id="activityForm">
+                        <div id="error-message2" class="error-message"></div>
+
+                        <label for="activityTitle">Title:</label>
+                        <input type="text" id="activityTitle" placeholder="Activity Title" maxlength="30" required>
+
+                        <label for="activityDesc">Description:</label>
+                        <input type="text" id="activityDesc" placeholder="Activity Description" required>
+
+                        <button type="submit">Add Activity</button>
+                    </form>
+                </div>
+                <!--- ACTIVITY BODY --->
+                <div class="activity-container">
+                    <div th:each="list : ${eventDetailsList}">
+                        <h2 class="ulTitle" th:text="${list.board.name}"></h2>
+                        <ul class="board scrollable" th:attr="board-id=${list.board.id}">
+                            <li th:each="activities : ${list.activities}" class="activity" th:draggable="${canEdit} ? true : false" th:attr="activity-id=${activities.activity.id}, activity-title=${activities.activity.title}, activity-description=${activities.activity.description}">
+                                <div class="activity-header">
+                                    <span th:text="${activities.activity.title}"></span>
+                                    <button class="toggle-btn">[+]</button>
+                                </div>
+                                <div th:if="${canEdit}" class="add-subactivity" style="display: none;">
+                                    <input type="text" class="new-subactivity-input" placeholder="New Subactivity..." />
+                                    <button class="add-subactivity-btn">Add</button>
+                                </div>
+                                <ul class="sub-activities" style="display: none;">
+                                    <li th:each="subActivity : ${activities.subActivities}" class="sub-activity" th:classappend="${subActivity.checked} ? 'checked'" th:attr="sub-activity-id=${subActivity.id}"><input type="checkbox" th:checked="${subActivity.checked}" class="sub-check" th:text="${subActivity.text}" th:disabled="${!canEdit}" /></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <!--- FOOTER --->
+        <footer class="footer bg-dark text-white mt-4">
+            <div class="container-fluid py-3">
+                <div class="row">
+                    <div class="col-md-12 text-center text-md-start">
+                        <p class="mb-0">© 2024 Projeto. Todos os direitos reservados.</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <!--- SCRIPTS PARA TODOS --->
+        <script th:inline="javascript">
+            /*<![CDATA[*/
+            window.canEdit = /*[[${canEdit}]]*/ [];
+            window.username = /*[[${username}]]*/ [];
+            /*]]>*/
+            const urlParts = window.location.pathname.split('/');
+            window.eventId = urlParts[urlParts.length - 1];
+
+            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            let tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            function setOccupationPercentage(taskId) {
+                let cell = document.querySelector(`td[task-id="${taskId}"]`);
+
+                if (!cell) {
+                    console.error("Cell not found");
+                    return;
+                }
+
+                // Obtém os valores dos atributos hour-start e hour-end
+                const startTime = cell.getAttribute('hour-start');
+                const endTime = cell.getAttribute('hour-end');
+
+                // Verifica se os atributos existem
+                if (!startTime || !endTime) {
+                    console.error("Hour-start or hour-end attributes not found");
+                    return;
+                }
+
+                // Extrai os minutos dos tempos de início e fim
+                const startMin = extractMinutes(startTime);
+                const endMin = extractMinutes(endTime) === 0 ? 0 : 60 - extractMinutes(endTime);
+
+                let startMinPer = (startMin / 60) * 100;
+                let endMinPer = (endMin / 60) * 100;
+
+                let colspan = cell.getAttribute('colspan');
+
+                startMinPer = startMinPer / colspan;
+                endMinPer = endMinPer / colspan;
+
+                // Add the CSS for the pseudo-element to the document head
+                let style = document.createElement('style');
+                style.innerHTML = `
+                            [task-id="${taskId}"]::before {
+                                width: ${startMinPer}%;
+                            }
+                            [task-id="${taskId}"]::after {
+                                width: ${endMinPer}%;
+                            }
+                        `;
+                document.getElementsByTagName('head')[0].appendChild(style);
+            }
+
+            function extractMinutes(time) {
+                let parts = time.split(':');
+                return parseInt(parts[1], 10);
+            }
+
+            // Detecta todas as células com a classe 'occupied' e chama setOccupationPercentage para cada uma
+            let occupiedCells = document.querySelectorAll('.occupied');
+            occupiedCells.forEach(function(cell) {
+                setOccupationPercentage(cell.getAttribute('task-id'));
+            });
+
+            // Função para colapsar/expandir subatividades
+            function toggleSubActivities(button) {
+                const parentLi = button.closest('li'); // Encontra o <li> pai
+                const subActivities = parentLi.querySelector('.sub-activities');
+                const addSubactivity = parentLi.querySelector('.add-subactivity');
+
+                if (subActivities.style.display === 'none') {
+                    subActivities.style.display = 'block';
+                    if (window.canEdit) {
+                        addSubactivity.style.display = 'flex';
+                    }
+                    button.textContent = '[-]'; // Muda o botão para indicar que vai colapsar
+                } else {
+                    subActivities.style.display = 'none';
+                    if (window.canEdit) {
+                        addSubactivity.style.display = 'none';
+                    }
+                    button.textContent = '[+]'; // Muda o botão para indicar que vai expandir
+                }
+            }
+
+            // Botões de colapso
+            const toggleButtons = document.querySelectorAll('.toggle-btn');
+            toggleButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    toggleSubActivities(this);
+                });
+            });
+
+            // Função para alterar os editores do evento
+            function updateEditors(editors) {
+                const eventEditors = document.getElementById('eventEditors');
+                eventEditors.textContent = editors.join(', ');
+            }
+
+            // Função para alterar o estado do evento
+            function updateStatus(status) {
+                const eventStatus = document.getElementById('eventStatus');
+                eventStatus.textContent = status;
+            }
+
+            // Função para adicionar uma nova tarefa
+            function addTask(task) {
+                // Get the tbody element
+                const tbody = document.getElementById('task-tbody');
+
+                // Create a new tr element
+                const tr = document.createElement('tr');
+
+                // Create and append the task title td
+                const titleTd = document.createElement('td');
+                titleTd.classList.add('task');
+                titleTd.textContent = task.title;
+                tr.appendChild(titleTd);
+
+                // Create and append the beforeColspan td if beforeColspan > 0
+                if (task.beforeColspan > 0) {
+                    const beforeColspanTd = document.createElement('td');
+                    beforeColspanTd.setAttribute('colspan', task.beforeColspan);
+                    tr.appendChild(beforeColspanTd);
+                }
+
+                // Create and append the main task td
+                const taskTd = document.createElement('td');
+                taskTd.classList.add('occupied');
+                taskTd.setAttribute('colspan', task.colspan);
+                taskTd.setAttribute('task', task.title);
+                taskTd.setAttribute('data-bs-toggle', 'tooltip');
+                taskTd.setAttribute('data-bs-html', 'true');
+                taskTd.setAttribute('data-bs-placement', 'bottom');
+                taskTd.setAttribute('task-id', task.id);
+                taskTd.setAttribute('date-start', task.startDate);
+                taskTd.setAttribute('date-end', task.endDate);
+                taskTd.setAttribute('hour-start', task.startTime);
+                taskTd.setAttribute('hour-end', task.endTime);
+                taskTd.setAttribute('aria-label', `Task: ${task.title}<br>Start: ${task.startDate} ${task.startTime}<br>End: ${task.endDate} ${task.endTime}`);
+                taskTd.setAttribute('data-bs-original-title', `Task: ${task.title}<br>Start: ${task.startDate} ${task.startTime}<br>End: ${task.endDate} ${task.endTime}`);
+                tr.appendChild(taskTd);
+
+                // Append the new tr to the tbody
+                tbody.appendChild(tr);
+
+                setOccupationPercentage(taskTd.getAttribute('task-id'));
+
+                // Re-initialize the tooltips
+                let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                let tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+
+            // Função para eliminar tarefas
+            function deleteTask(task) {
+                const cell = document.querySelector(`td[task-id="${task.id}"]`);
+
+                // Se a célula existir, continue
+                if (cell) {
+                    // Encontra a linha pai (<tr>) da célula
+                    let row = cell.parentElement;
+
+                    // Se a linha existir, remova-a da tabela
+                    if (row) {
+                        row.remove();
+                    }
+                }
+            }
+
+            // Função para atualizar tarefas
+            function updateTask(task) {
+                const cell = document.querySelector(`td[task-id="${task.id}"]`);
+
+                const parentRow = cell.parentElement;
+                let taskCell = parentRow.querySelector('td.task');
+                let blankCell = parentRow.querySelector('td.blank');
+
+                taskCell.textContent = task.title;
+
+                if (blankCell !== null && task.beforeColspan === 0) {
+                    blankCell.remove();
+                } else if (blankCell !== null && task.beforeColspan > 0) {
+                    blankCell.colSpan = task.beforeColspan;
+                } else if (blankCell === null && task.beforeColspan > 0) {
+                    blankCell = document.createElement('td');
+                    blankCell.className = 'blank';
+                    blankCell.colSpan = task.beforeColspan;
+
+                    parentRow.insertBefore(blankCell, cell);
+                }
+
+                cell.setAttribute('task-title', task.title);
+                cell.setAttribute('date-start', task.startDate);
+                cell.setAttribute('date-end', task.endDate);
+                cell.setAttribute('hour-start', task.startTime);
+                cell.setAttribute('hour-end', task.endTime);
+                cell.colSpan = task.colspan;
+                cell.style.display = 'none';
+                cell.offsetHeight;
+                cell.style.display = '';
+
+                const newAriaLabel = `Task: ${task.title}<br>Start: ${task.startDate} ${task.startTime}<br>End: ${task.endDate} ${task.endTime}`;
+                const newOriginalTitle = `Task: ${task.title}<br>Start: ${task.startDate} ${task.startTime}<br>End: ${task.endDate} ${task.endTime}`;
+                cell.setAttribute('aria-label', newAriaLabel);
+                cell.setAttribute('data-bs-original-title', newOriginalTitle);
+
+                if (cell.classList.contains('error')) {
+                    cell.classList.remove('error');
+                    cell.classList.add('occupied');
+
+                    cell.querySelector('button').remove();
+
+                    cell.setAttribute('data-bs-toggle', 'tooltip');
+                    cell.setAttribute('data-bs-html', 'true');
+                    cell.setAttribute('data-bs-placement', 'bottom');
+
+                    // Re-initialize the tooltips
+                    let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    let tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    });
+                }
+
+                setOccupationPercentage(cell.getAttribute('task-id'));
+            }
+
+            // Função para mover tarefas para cima
+            function upTask(task) {
+                const cell = document.querySelector(`td[task-id="${task.id}"]`);
+                let row = cell.parentElement;
+                let tbody = row.parentNode;
+                let previousRow = row.previousElementSibling;
+
+                // Move a tarefa para cima
+                tbody.insertBefore(row, previousRow);
+            }
+
+            // Função para mover tarefas para baixo
+            function downTask(task) {
+                const cell = document.querySelector(`td[task-id="${task.id}"]`);
+                let row = cell.parentElement;
+                let tbody = row.parentNode;
+                let nextRow = row.nextElementSibling;
+
+                // Move a tarefa para baixo
+                tbody.insertBefore(nextRow, row);
+            }
+
+            // Função para adicionar uma nova atividade
+            function addActivity(activity) {
+                const board = document.querySelector(`ul[board-id="${activity.boardId}"]`);
+
+                // Cria um novo elemento <li> para a atividade
+                let newLi = document.createElement('li');
+
+                newLi.classList.add('activity');
+
+                if (window.canEdit) {
+                    newLi.setAttribute('draggable', 'true');
+
+                    // Cria o conteúdo da atividade com a funcionalidade de colapsar/expandir subatividades
+                    newLi.innerHTML = `
+                                        <div class="activity-header">
+                                            <span>${activity.title}</span>
+                                            <button class="toggle-btn">[+]</button>
+                                        </div>
+                                        <div class="add-subactivity" style="display: none;">
+                                            <input type="text" class="new-subactivity-input" placeholder="Nova subatividade..." />
+                                            <button class="add-subactivity-btn">Adicionar</button>
+                                        </div>
+                                        <ul class="sub-activities" style="display: none;"></ul>
+                                    `;
+                } else {
+                    newLi.setAttribute('draggable', 'false');
+
+                    // Cria o conteúdo da atividade com a funcionalidade de colapsar/expandir subatividades
+                    newLi.innerHTML = `
+                                        <div class="activity-header">
+                                            <span>${activity.title}</span>
+                                            <button class="toggle-btn">[+]</button>
+                                        </div>
+                                        <ul class="sub-activities" style="display: none;"></ul>
+                                    `;
+                }
+
+                newLi.setAttribute('activity-id', activity.id);
+                newLi.setAttribute('activity-title', activity.title);
+                newLi.setAttribute('activity-description', activity.description);
+
+                // Adiciona a nova atividade à board
+                board.appendChild(newLi);
+
+                // Associa a funcionalidade de colapsar/expandir
+                const toggleButton = newLi.querySelector('.toggle-btn');
+                toggleButton.addEventListener('click', function() {
+                    toggleSubActivities(this);
+                });
+
+                if (window.canEdit) {
+                    // Associa a funcionalidade de adicionar subatividades
+                    const addSubButton = newLi.querySelector('.add-subactivity-btn');
+                    addSubButton.addEventListener('click', addSubActivityFunction);
+
+                    // Adiciona os eventos de drag and drop
+                    newLi.addEventListener('dragstart', handleDragStart);
+                    newLi.addEventListener('dragend', handleDragEnd);
+                    newLi.addEventListener('dblclick', handleDblClick);
+                }
+            }
+
+            // Função para eliminar atividades
+            function deleteActivity(activity) {
+                const deleteActivity = document.querySelector(`li[activity-id="${activity.id}"]`);
+
+                if (deleteActivity) {
+                    deleteActivity.remove();
+                }
+            }
+
+            // Função para atualizar atividades
+            function updateActivity(activity) {
+                const updateActivity = document.querySelector(`li[activity-id="${activity.id}"]`);
+
+                updateActivity.querySelector('.activity-header span').textContent = activity.title;
+
+                updateActivity.setAttribute('activity-title', activity.title);
+                updateActivity.setAttribute('activity-description', activity.description);
+            }
+
+            // Função para mover atividades
+            function moveActivity(activity) {
+                const board = document.querySelector(`ul[board-id="${activity.boardId}"]`);
+                board.appendChild(document.querySelector(`li[activity-id="${activity.id}"]`));
+            }
+
+            // Função para adicionar uma nova subatividade
+            function addSubActivity(subActivity) {
+                const activityElement = document.querySelector(`li[activity-id="${subActivity.activityId}"]`);
+                const subActivitiesList = activityElement.querySelector('.sub-activities');
+
+                if (subActivity && subActivitiesList) {
+                    const newSubActivity = document.createElement('li');
+                    newSubActivity.classList.add('sub-activity');
+                    newSubActivity.setAttribute('sub-activity-id', subActivity.id);
+
+                    if (window.canEdit) {
+                        newSubActivity.innerHTML = `<input type="checkbox" class="sub-check" />${subActivity.text}`;
+                    } else {
+                        newSubActivity.innerHTML = `<input type="checkbox" class="sub-check" disabled />${subActivity.text}`;
+                    }
+
+                    subActivitiesList.appendChild(newSubActivity);
+
+                    if (window.canEdit) {
+                        const checkbox = newSubActivity.querySelector('.sub-check');
+                        checkbox.addEventListener('change', markSubActivityAsDoneFunction);
+                    }
+                }
+            }
+
+            // Função para eliminar subatividades
+            function deleteSubActivity(subActivity) {
+                const deleteSubActivity = document.querySelector(`li[sub-activity-id="${subActivity.id}"]`);
+                if (deleteSubActivity) {
+                    deleteSubActivity.remove();
+                }
+            }
+
+            // Função para riscar subatividades concluídas
+            function markSubActivityAsDone(subActivity) {
+                const checkbox = document.querySelector(`li[sub-activity-id="${subActivity.id}"] .sub-check`);
+
+                if (subActivity.checked) {
+                    checkbox.parentElement.classList.add('checked');
+                    checkbox.checked = true;
+                } else {
+                    checkbox.parentElement.classList.remove('checked');
+                    checkbox.checked = false;
+                }
+            }
+        </script>
+        <!--- MENUS, MODALS & SCRIPTS PARA AUDIT LOGS, PLANNING, ACTIVITIES, SUBACTIVITIES, ADD EDITORS & CHANGE STATUS --->
+        <div th:if="${canEdit == true}">
+            <!--- MENUS --->
+            <div id="task-menu">
+                <ul>
+                    <li onclick="moveTask('up')"><i class="bi bi-arrow-up"></i> Move Up</li>
+                    <li onclick="moveTask('down')"><i class="bi bi-arrow-down"></i> Move Down</li>
+                    <li id="menu-task-edit"><i class="bi bi-pencil"></i> Edit</li>
+                    <li onclick="deleteTaskClickButton()"><i class="bi bi-trash"></i> Delete</li>
+                </ul>
+            </div>
+            <div id="activity-menu">
+                <ul>
+                    <li id="menu-activity-edit"><i class="bi bi-pencil"></i> Edit</li>
+                    <li onclick="deleteActivityClickButton()"><i class="bi bi-trash"></i> Delete</li>
+                </ul>
+            </div>
+            <div id="sub-activity-menu">
+                <ul>
+                    <li onclick="deleteSubActivityFunction()"><i class="bi bi-trash"></i> Delete Subactivity</li>
+                </ul>
+            </div>
+
+            <!--- MODALS --->
+            <div class="modal" id="modalEditTask">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <!-- MODAL HEADER -->
+                        <div class="modal-header">
+                            <h4 class="modal-title">Edit Task</h4>
+                            <button id="modalEditTaskXButton" type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <!-- MODAL BODY -->
+                        <div class="modal-body">
+                            <div id="errorContainer" class="mb-3"></div>
+                            <form>
+                                <div class="mb-3">
+                                    <input type="checkbox" id="toggleEditTitle" class="ms-2">
+                                    <label for="editTitle">Title:</label>
+                                    <input type="text" id="editTitle" placeholder="Task Title" disabled>
+                                </div>
+                                <div class="d-flex ">
+                                    <div class="mb-3 me-3">
+                                        <input type="checkbox" id="toggleEditDateTimeStart" class="ms-2">
+                                        <label for="editDateStart">Start Date:</label>
+                                        <select id="editDateStart" name="date-start" disabled>
+                                            <option th:each="date : ${dateList}" th:value="${date.date}" th:text="${date.date}"></option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editTimeStart">Start Hour:</label>
+                                        <input type="time" id="editTimeStart" disabled>
+                                    </div>
+                                </div>
+                                <div class="d-flex ">
+                                    <div class="mb-3 me-3">
+                                        <input type="checkbox" id="toggleEditDateTimeEnd" class="ms-2">
+                                        <label for="editDateEnd">End Date:</label>
+                                        <select id="editDateEnd" name="date-end" disabled>
+                                            <option th:each="date : ${dateList}" th:value="${date.date}" th:text="${date.date}"></option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editTimeEnd">End Hour:</label>
+                                        <input type="time" id="editTimeEnd" disabled>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <!-- MODAL FOOTER -->
+                        <div class="modal-footer">
+                            <button type="button" id="modalEditCloseButton" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                            <button type="button" id="modalEditTaskButton" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal" id="modalEditActivity">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <!-- MODAL HEADER -->
+                        <div class="modal-header">
+                            <h4 class="modal-title">Edit Activity</h4>
+                            <button id="modalEditActivityXButton" type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <!-- MODAL BODY -->
+                        <div class="modal-body">
+                            <form>
+                                <div id="errorContainer2" class="mb-3"></div>
+                                <div class="mb-3">
+                                    <input type="checkbox" id="toggleEditTitle2" class="ms-2">
+                                    <label for="editTitle2">Title:</label>
+                                    <input type="text" id="editTitle2" placeholder="Task Title" maxlength="30" disabled>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="checkbox" id="toggleEditDescription" class="ms-2">
+                                    <label for="editDescription">Description:</label>
+                                    <input type="text" id="editDescription" placeholder="Task Description" disabled>
+                                </div>
+                            </form>
+                        </div>
+                        <!-- MODAL FOOTER -->
+                        <div class="modal-footer">
+                            <button type="button" id="modalEditActivityCloseButton" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                            <button type="button" id="modalEditActivityButton" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div th:if="${event.getExtendedProps().creator == username}" class="modal fade" id="logsModal" tabindex="-1" aria-labelledby="logsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <!-- MODAL HEADER -->
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="logsModalLabel">Event Audit Logs</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <!-- MODAL BODY -->
+                        <div class="modal-body">
+                            <button id="refreshButton" class="btn btn-secondary">Refresh</button>
+                            <div class="table-container">
+                                <table class="table table-bordered table-striped" id="auditLogsTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Action</th>
+                                            <th>Username</th>
+                                            <th>Entity</th>
+                                            <th>Entity ID</th>
+                                            <th>Date/Hour</th>
+                                            <th>Before Data</th>
+                                            <th>After Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!---<tr>
+                                            <td>CREATE</td>
+                                            <td>admin</td>
+                                            <td>Activity</td>
+                                            <td>13</td>
+                                            <td>2024-10-15 15:05:51</td>
+                                            <td class="json-data" data-json="null" style="cursor: default;">null</td>
+                                            <td class="json-data" data-json='{"id":8,"title":"awd","description":"awd","status":"Finished","allDay":true,"startDate":"2024-10-16","startTime":"00:00","endDate":"2024-10-17","endTime":"00:00","backgroundColor":"#0088ff","textColor":"#ffffff","creator":"admin","editors":["diogo","daniel"]}'>{"id":8,"title":"awd","description":"awd","status":"Finished","allDay":true,"startDate":"2024-10-16","startTime":"00:00","endDate":"2024-10-17","endTime":"00:00","backgroundColor":"#0088ff","textColor":"#ffffff","creator":"admin","editors":["diogo","daniel"]}</td>
+                                        </tr>--->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- MODAL FOOTER -->
+                        <div class="modal-footer d-flex justify-content-between">
+                            <div class="pagination-container">
+                                <button id="prevButton" class="btn btn-primary" hidden="hidden">Previous</button>
+                                <button id="nextButton" class="btn btn-primary" hidden="hidden">Next</button>
+                            </div>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!--- AUDIT LOGS SCRIPT --->
+            <div th:if="${event.getExtendedProps().creator == username}">
+                <script>
+                    const tableBody = document.querySelector('#auditLogsTable tbody');
+                    const prevButton = document.querySelector('#prevButton');
+                    const nextButton = document.querySelector('#nextButton');
+                    let currentPage = 0;
+
+                    function jsonDataDisplay(cell) {
+                        let jsonData = cell.getAttribute('data-json'); // 'let' aqui é correto
+
+                        // Evita adicionar funcionalidade de expansão se for "null"
+                        if (jsonData === "null") {
+                            cell.style.cursor = "default"; // Não permite clique
+                            return; // Não adiciona expand/contração
+                        }
+
+                        // Adiciona evento de clique para expandir/contrair
+                        cell.addEventListener('click', function () {
+                            let formattedData; // 'let' dentro de escopo de função para usar corretamente
+
+                            try {
+                                // Tenta converter o JSON e formatá-lo
+                                let parsedData = JSON.parse(jsonData); // 'let' é adequado aqui também
+                                formattedData = JSON.stringify(parsedData, null, 2); // Formata o JSON
+                            } catch (e) {
+                                formattedData = jsonData; // Se não for um JSON válido, mostra como está
+                            }
+
+                            if (this.classList.contains('expanded')) {
+                                // Volta para o estado colapsado
+                                this.classList.remove('expanded');
+                                this.innerHTML = jsonData.length > 200 ? jsonData.substring(0, 200) + '...' : jsonData;
+                            } else {
+                                // Expande e formata o JSON
+                                this.classList.add('expanded');
+                                this.innerHTML = '<pre>' + formattedData + '</pre>';
+                            }
+                        });
+                    }
+
+                    function fetchAuditLogsByEvent(eventId, page = 0, size = 10) {
+                        fetch(`/api/get-event-auditlogs/${eventId}?page=${page}&size=${size}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Error getting logs from audit.');
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                tableBody.innerHTML = ''; // Limpa as linhas anteriores da tabela
+
+                                data.content.forEach(log => {
+                                    const row = document.createElement('tr');
+
+                                    row.innerHTML = `
+                                    <td>${log.action}</td>
+                                    <td>${log.user}</td>
+                                    <td>${log.entityName}</td>
+                                    <td>${log.entityId}</td>
+                                    <td>${new Date(log.timestamp).toLocaleString()}</td>
+                                    <td class="json-data" data-json='${log.beforeData}'>${log.beforeData || 'null'}</td>
+                                    <td class="json-data" data-json='${log.afterData}'>${log.afterData || 'null'}</td>
+                                `;
+
+                                    tableBody.appendChild(row);
+                                });
+
+                                document.querySelectorAll('.json-data').forEach(function (cell) {
+                                    jsonDataDisplay(cell);
+                                });
+
+                                currentPage = data.number;
+                                nextButton.hidden = data.last === true;
+                                prevButton.hidden = data.first === true;
+                            })
+                            .catch(error => {
+                                console.error('Erro:', error);
+                            });
+                    }
+
+                    // Lógica para quanto abrir o modal dos logs do evento
+                    document.getElementById('logsModal').addEventListener('shown.bs.modal', function () {
+                        nextButton.hidden = true;
+                        prevButton.hidden = true;
+                        fetchAuditLogsByEvent(window.eventId);
+                    });
+
+                    // Lógica para botão de refresh (implementação da lógica de fetch)
+                    document.getElementById('refreshButton').addEventListener('click', function () {
+                        nextButton.hidden = true;
+                        prevButton.hidden = true;
+                        fetchAuditLogsByEvent(window.eventId);
+                    });
+
+                    // Lógica para botões Previous e Next
+                    document.getElementById('prevButton').addEventListener('click', function () {
+                        fetchAuditLogsByEvent(window.eventId, currentPage - 1);
+                    });
+                    document.getElementById('nextButton').addEventListener('click', function () {
+                        fetchAuditLogsByEvent(window.eventId, currentPage + 1);
+                    });
+                </script>
+            </div>
+            <!--- PLANNING, ACTIVITIES & SUBACTIVITIES SCRIPT --->
+            <script th:inline="javascript">
+                /*<![CDATA[*/
+                const startDateEvent = new Date(/*[[${event.start}]]*/ []);
+                const endDateEvent = new Date(/*[[${event.end}]]*/ []);
+                /*]]>*/
+
+                let selectedTaskId;
+                let selectedActivityId;
+                let selectedSubActivityId;
+
+                const taskMenu = document.getElementById('task-menu');
+                const activityMenu = document.getElementById('activity-menu');
+                const subActivityMenu = document.getElementById('sub-activity-menu');
+
+                // Right Click Menus
+                document.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    const task = e.target.closest('td.occupied');
+                    if (task) {
+                        selectedTaskId = task.getAttribute('task-id');
+                        taskMenu.style.top = `${e.pageY}px`;
+                        taskMenu.style.left = `${e.pageX}px`;
+                        taskMenu.style.display = 'block';
+                    } else {
+                        selectedTaskId = null;
+                        taskMenu.style.display = 'none';
+                    }
+
+                    const activity = e.target.closest('li.activity');
+                    if (activity) {
+                        const subActivities = activity.querySelector('.sub-activities');
+
+                        if (!subActivities || subActivities.style.display === 'none') {
+                            selectedActivityId = activity.getAttribute('activity-id');
+                            activityMenu.style.top = `${e.pageY}px`;
+                            activityMenu.style.left = `${e.pageX}px`;
+                            activityMenu.style.display = 'block';
+                        } else {
+                            selectedActivityId = null;
+                            activityMenu.style.display = 'none';
+                        }
+                    } else {
+                        selectedActivityId = null;
+                        activityMenu.style.display = 'none';
+                    }
+
+                    const subActivity = e.target.closest('li.sub-activity');
+                    if (subActivity) {
+                        selectedSubActivityId = subActivity.getAttribute('sub-activity-id');
+                        subActivityMenu.style.top = `${e.pageY}px`;
+                        subActivityMenu.style.left = `${e.pageX}px`;
+                        subActivityMenu.style.display = 'block';
+                    } else {
+                        selectedSubActivityId = null;
+                        subActivityMenu.style.display = 'none';
+                    }
+                });
+                document.addEventListener('click', function () {
+                    taskMenu.style.display = 'none';
+                    activityMenu.style.display = 'none';
+                    subActivityMenu.style.display = 'none';
+                });
+
+                // Função para converter a data de dd-mm-yyyy para yyyy-mm-dd
+                function convertDateFormat(dateString) {
+                    const [day, month, year] = dateString.split('-');
+                    return `${year}-${month}-${day}`;
+                }
+
+                function validateDates(startDateTime, endDateTime) {
+                    if (startDateTime < startDateEvent || endDateTime > endDateEvent) {
+                        return "As datas e horas devem estar dentro do intervalo permitido.";
+                    }
+
+                    const timeDifference = (endDateTime - startDateTime) / (1000 * 60); // Diferença em minutos
+                    if (timeDifference < 30) {
+                        return "A diferença entre a data e hora inicial e final deve ser de no mínimo 30 minutos.";
+                    }
+
+                    return null;
+                }
+
+                // Função para alternar o estado do input baseado na checkbox
+                function toggleInput(checkboxId, inputId) {
+                    const checkbox = document.getElementById(checkboxId);
+                    const input = document.getElementById(inputId);
+
+                    // Adiciona um listener para o evento de mudança na checkbox
+                    checkbox.addEventListener("change", function() {
+                        input.disabled = !checkbox.checked; // Desbloqueia o input se checkbox estiver marcada, caso contrário, bloqueia
+                    });
+                }
+
+                // Aplica a função a cada par checkbox-input
+                toggleInput("toggleEditTitle", "editTitle");
+                toggleInput("toggleEditDateTimeStart", "editDateStart");
+                toggleInput("toggleEditDateTimeStart", "editTimeStart");
+                toggleInput("toggleEditDateTimeEnd", "editDateEnd");
+                toggleInput("toggleEditDateTimeEnd", "editTimeEnd");
+                toggleInput("toggleEditTitle2", "editTitle2");
+                toggleInput("toggleEditDescription", "editDescription");
+
+                function closeTaskModal() {
+                    selectedTaskId = null;
+                    document.getElementById('errorContainer').innerHTML = "";
+                    document.getElementById('toggleEditTitle').checked = false;
+                    document.getElementById('toggleEditDateTimeStart').checked = false;
+                    document.getElementById('toggleEditDateTimeEnd').checked = false;
+                    document.getElementById('editTitle').disabled = true;
+                    document.getElementById('editDateStart').disabled = true;
+                    document.getElementById('editTimeStart').disabled = true;
+                    document.getElementById('editDateEnd').disabled = true;
+                    document.getElementById('editTimeEnd').disabled = true;
+                }
+
+                function closeActivityModal() {
+                    selectedActivityId = null;
+                    document.getElementById('toggleEditTitle2').checked = false;
+                    document.getElementById('toggleEditDescription').checked = false;
+                    document.getElementById('editTitle2').disabled = true;
+                    document.getElementById('editDescription').disabled = true;
+                }
+
+                //
+                // TAREFAS
+                //
+
+                // CRIAR NOVA TAREFA
+                document.getElementById('planningForm').addEventListener('submit', async function(event) {
+                    event.preventDefault(); // Impede o envio padrão do formulário
+
+                    // Obter os valores dos campos do formulário
+                    const title = document.getElementById('planningName').value;
+                    const startDate = convertDateFormat(document.getElementById('date-start').value);
+                    const startTime = document.getElementById('time-start').value;
+                    const endDate = convertDateFormat(document.getElementById('date-end').value);
+                    const endTime = document.getElementById('time-end').value;
+
+                    const startDateTime = new Date(`${startDate}T${startTime}:00`);
+                    const endDateTime = new Date(`${endDate}T${endTime}:00`);
+
+                    const errorMessage = validateDates(startDateTime, endDateTime);
+                    if (errorMessage) {
+                        document.getElementById('error-message').textContent = errorMessage;
+                        document.getElementById('error-message').style.display = 'block';
+                        event.preventDefault();
+                        return;
+                    }
+
+                    document.getElementById('error-message').style.display = 'none';
+
+                    // Criar um objeto com os dados
+                    const newTask = {
+                        title: title,
+                        startDate: startDate,
+                        startTime: startTime,
+                        endDate: endDate,
+                        endTime: endTime,
+                        eventId: window.eventId,
+                        beforeColspan: 0,
+                        colspan: 0
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o novo evento para o backend
+                    fetch("/tasks/add", {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                        },
+                        body: JSON.stringify(newTask)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Error saving task.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Reset do Formulário
+                            document.getElementById('planningName').value = "";
+                            document.getElementById('time-start').value = "";
+                            document.getElementById('time-end').value = "";
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                });
+
+                // MOVER TAREFA
+                function moveTask(direction) {
+                    let taskId = selectedTaskId;
+                    selectedTaskId = null;
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Encontra a célula com o ID especificado
+                    const cell = document.querySelector(`td[task-id="${taskId}"]`);
+                    // Encontra a linha pai (<tr>) da célula
+                    let row = cell.parentElement;
+
+                    if (direction === 'up') {
+                        // Encontra a linha anterior a 'row' dentro do mesmo tbody
+                        let previousRow = row.previousElementSibling;
+
+                        // Se houver uma linha anterior (ou seja, se 'row' não for a primeira linha)
+                        if (previousRow) {
+                            fetch(`/tasks/up/${taskId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    [csrfHeader]: csrfToken // Inclua o token CSRF no cabeçalho da solicitação
+                                }
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Error moving task up.');
+                                    }
+                                    return response.json();
+                                })
+                                .then(data => {
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                });
+                        }
+                    } else if (direction === 'down') {
+                        // Encontra a linha anterior a 'row' dentro do mesmo tbody
+                        let nextRow = row.nextElementSibling;
+
+                        // Se houver uma linha anterior (ou seja, se 'row' não for a primeira linha)
+                        if (nextRow) {
+                            fetch(`/tasks/down/${taskId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    [csrfHeader]: csrfToken // Inclua o token CSRF no cabeçalho da solicitação
+                                }
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Error moving task down.');
+                                    }
+                                    return response.json();
+                                })
+                                .then(data => {
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                });
+                        }
+                    }
+                }
+
+                // EDIT TAREFA ERROR - CLICK EDIT BUTTON
+                function editError(buttonElement) {
+                    // Encontre o pai <td> do botão
+                    const cell = buttonElement.parentElement;
+
+                    selectedTaskId = cell.getAttribute('task-id');
+
+                    if (selectedTaskId === null) {
+                        console.error("No tasks selected!");
+                        return;
+                    }
+
+                    let errorContainer = document.getElementById('errorContainer');
+                    errorContainer.innerHTML = "";
+
+                    let errors = [];
+
+                    errors.push("As datas e horas devem estar dentro do intervalo permitido.");
+
+                    if (errors.length > 0) {
+                        let errorMessage = '<div class="alert alert-danger mb-3" role="alert">';
+                        errorMessage += '<strong>Erro!</strong><ul>';
+
+                        for (let i = 0; i < errors.length; i++) {
+                            errorMessage += '<li>' + errors[i] + '</li>';
+                        }
+
+                        errorMessage += '</ul></div>';
+
+                        errorContainer.innerHTML = errorMessage;
+                    }
+
+                    document.getElementById('editTitle').value = cell.getAttribute('task-title');
+                    document.getElementById('editDateStart').value = convertDateFormat(cell.getAttribute('date-start'));
+                    document.getElementById('editTimeStart').value = cell.getAttribute('hour-start');
+                    document.getElementById('editDateEnd').value = convertDateFormat(cell.getAttribute('date-end'));
+                    document.getElementById('editTimeEnd').value = cell.getAttribute('hour-end');
+
+                    // Abre o modal
+                    let modalElement = document.getElementById('modalEditTask');
+                    let modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                }
+
+                // EDIT TAREFA - CLICK EDIT BUTTON
+                document.getElementById('menu-task-edit').addEventListener('click', function () {
+                    if (selectedTaskId === null) {
+                        console.error("No tasks selected!");
+                        return;
+                    }
+
+                    // Encontra a célula com o ID especificado
+                    const cellSelector = `td[task-id="${selectedTaskId}"]`;
+                    const cell = document.querySelector(cellSelector);
+
+                    document.getElementById('editTitle').value = cell.getAttribute('task-title');
+                    document.getElementById('editDateStart').value = convertDateFormat(cell.getAttribute('date-start'));
+                    document.getElementById('editTimeStart').value = cell.getAttribute('hour-start');
+                    document.getElementById('editDateEnd').value = convertDateFormat(cell.getAttribute('date-end'));
+                    document.getElementById('editTimeEnd').value = cell.getAttribute('hour-end');
+
+                    // Abre o modal
+                    let modalElement = document.getElementById('modalEditTask');
+                    let modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                });
+
+                // EDIT TAREFA - CLICK SAVE BUTTON
+                document.getElementById('modalEditTaskButton').addEventListener('click', function () {
+                    let taskId = selectedTaskId;
+
+                    if (taskId === null) {
+                        // Fecha o modal
+                        let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditTask'));
+                        modal.hide();
+                        console.error("Error! Unidentified task.");
+                        return;
+                    }
+
+                    selectedTaskId = null;
+
+                    // Encontra a célula com o ID especificado
+                    const cell = document.querySelector(`td[task-id="${taskId}"]`);
+
+                    const toggleEditTitle = document.getElementById('toggleEditTitle').checked;
+                    let title = document.getElementById('editTitle').value;
+
+                    const toggleEditDateTimeStart = document.getElementById('toggleEditDateTimeStart').checked;
+                    let startDate = convertDateFormat(document.getElementById('editDateStart').value);
+                    let startTime = document.getElementById('editTimeStart').value;
+
+                    const toggleEditDateTimeEnd = document.getElementById('toggleEditDateTimeEnd').checked;
+                    let endDate = convertDateFormat(document.getElementById('editDateEnd').value);
+                    let endTime = document.getElementById('editTimeEnd').value;
+
+                    let errorContainer = document.getElementById('errorContainer');
+                    errorContainer.innerHTML = "";
+
+                    let errors = [];
+
+                    if (toggleEditTitle && title === "") {
+                        errors.push("Por favor, preencha o campo Título.");
+                    }
+
+                    if (toggleEditDateTimeStart && startDate === "") {
+                        errors.push("Por favor, preencha a Data Inicial.");
+                    }
+
+                    if (toggleEditDateTimeStart && startTime === "") {
+                        errors.push("Por favor, preencha a Hora Inicial.");
+                    }
+
+                    if (toggleEditDateTimeEnd && endDate === "") {
+                        errors.push("Por favor, preencha a Data Final.");
+                    }
+
+                    if (toggleEditDateTimeEnd && endTime === "") {
+                        errors.push("Por favor, preencha a Hora Final.");
+                    }
+
+                    if (toggleEditDateTimeStart && startTime !== "" && toggleEditDateTimeEnd && endTime !== "") {
+                        const startDateTime = new Date(`${startDate}T${startTime}:00`);
+                        const endDateTime = new Date(`${endDate}T${endTime}:00`);
+
+                        const errorMessage = validateDates(startDateTime, endDateTime);
+                        if (errorMessage) {
+                            errors.push(errorMessage);
+                        }
+                    }
+
+                    if (toggleEditDateTimeStart && startTime !== "" && !toggleEditDateTimeEnd) {
+                        const cellEndDate = cell.getAttribute('date-end');
+                        const cellEndTime = cell.getAttribute('hour-end');
+
+                        const startDateTime = new Date(`${startDate}T${startTime}:00`);
+                        const endDateTime = new Date(`${cellEndDate}T${cellEndTime}:00`);
+
+                        const errorMessage = validateDates(startDateTime, endDateTime);
+                        if (errorMessage) {
+                            errors.push(errorMessage);
+                        }
+                    }
+
+                    if (toggleEditDateTimeEnd && endTime !== "" && !toggleEditDateTimeStart) {
+                        const cellStartDate = cell.getAttribute('date-start');
+                        const cellStartTime = cell.getAttribute('hour-start');
+
+                        const startDateTime = new Date(`${cellStartDate}T${cellStartTime}:00`);
+                        const endDateTime = new Date(`${endDate}T${endTime}:00`);
+
+                        const errorMessage = validateDates(startDateTime, endDateTime);
+                        if (errorMessage) {
+                            errors.push(errorMessage);
+                        }
+                    }
+
+                    if (errors.length > 0) {
+                        let errorMessage = '<div class="alert alert-danger mb-3" role="alert">';
+                        errorMessage += '<strong>Erro!</strong><ul>';
+
+                        for (let i = 0; i < errors.length; i++) {
+                            errorMessage += '<li>' + errors[i] + '</li>';
+                        }
+
+                        errorMessage += '</ul></div>';
+
+                        errorContainer.innerHTML = errorMessage;
+                        return;
+                    }
+
+                    if (!toggleEditTitle) {
+                        title = null;
+                    }
+
+                    if (!toggleEditDateTimeStart) {
+                        startDate = null;
+                        startTime = null;
+                    }
+
+                    if (!toggleEditDateTimeEnd) {
+                        endDate = null;
+                        endTime = null;
+                    }
+
+                    const updatedTask = {
+                        id: taskId,
+                        title: title,
+                        startDate: startDate,
+                        startTime: startTime,
+                        endDate: endDate,
+                        endTime: endTime
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o evento para o backend
+                    fetch(`/tasks/update/${taskId}`, {
+                        method: "PUT",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                        },
+                        body: JSON.stringify(updatedTask)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Error updating task.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+
+                    closeTaskModal();
+
+                    // Fecha o modal
+                    let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditTask'));
+                    modal.hide();
+                });
+
+                // EDIT TAREFA - CLICK CLOSE BUTTON
+                document.getElementById('modalEditActivityCloseButton').addEventListener('click', closeTaskModal);
+
+                // EDIT TAREFA - CLICK X BUTTON
+                document.getElementById('modalEditTaskXButton').addEventListener('click', closeTaskModal);
+
+                // REMOVE TAREFA
+                function deleteTaskClickButton() {
+                    let taskId = selectedTaskId;
+
+                    // Confirmação de exclusão
+                    if (!confirm(`Are you sure you want to delete the task "${taskId}"?`)) {
+                        return;
+                    }
+
+                    selectedTaskId = null;
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    fetch(`/tasks/delete/${taskId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            [csrfHeader]: csrfToken // Inclua o token CSRF no cabeçalho da solicitação
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Error deleting task.');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+
+                //
+                // ATIVIDADES
+                //
+
+                // CRIAR NOVA ATIVIDADE
+                document.getElementById('activityForm').addEventListener('submit', async function(event) {
+                    event.preventDefault(); // Impede o envio padrão do formulário
+
+                    // Obter os valores dos campos do formulário
+                    const title = document.getElementById('activityTitle').value;
+                    const description = document.getElementById('activityDesc').value;
+
+                    // Seleciona o primeiro board dentro da activity-container
+                    let board = document.querySelector('.activity-container > div > ul');
+                    let boardId = board.getAttribute('board-id');
+
+                    // Criar um objeto com os dados
+                    const newActivity = {
+                        title: title,
+                        description: description
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o novo evento para o backend
+                    fetch(`/activities/add/${window.eventId}/${boardId}`, {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken
+                        },
+                        body: JSON.stringify(newActivity)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Error saving activity.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Reset Formulário
+                            document.getElementById('activityTitle').value = "";
+                            document.getElementById('activityDesc').value = "";
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                });
+
+                // EDIT ATIVIDADE - CLICK EDIT BUTTON
+                document.getElementById('menu-activity-edit').addEventListener('click', function () {
+                    if (selectedActivityId === null) {
+                        console.error("No activity selected!");
+                        return;
+                    }
+
+                    // Encontra a célula com o ID especificado
+                    const liSelector = `li[activity-id="${selectedActivityId}"]`;
+                    const li = document.querySelector(liSelector);
+
+                    document.getElementById('editTitle2').value = li.getAttribute('activity-title');
+                    document.getElementById('editDescription').value = li.getAttribute('activity-description');
+
+                    // Abre o modal
+                    let modalElement = document.getElementById('modalEditActivity');
+                    let modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                });
+
+                // EDIT ATIVIDADE - CLICK SAVE BUTTON
+                document.getElementById('modalEditActivityButton').addEventListener('click', function () {
+                    let activityId = selectedActivityId;
+
+                    if (activityId === null) {
+                        let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditTask'));
+                        modal.hide();
+                        console.error("Error! Unidentified activity.");
+                        return;
+                    }
+
+                    const toggleEditTitle = document.getElementById('toggleEditTitle2').checked;
+                    let title = document.getElementById('editTitle2').value;
+
+                    const toggleEditDescription = document.getElementById('toggleEditDescription').checked;
+                    let description = document.getElementById('editDescription').value;
+
+                    let errorContainer = document.getElementById('errorContainer2');
+                    errorContainer.innerHTML = "";
+
+                    let errors = [];
+
+                    if (toggleEditTitle && title === "") {
+                        errors.push("Por favor, preencha o campo Título.");
+                    }
+
+                    if (toggleEditDescription && description === "") {
+                        errors.push("Por favor, preencha o campo Descrição.");
+                    }
+
+                    if (errors.length > 0) {
+                        let errorMessage = '<div class="alert alert-danger mb-3" role="alert">';
+                        errorMessage += '<strong>Erro!</strong><ul>';
+
+                        for (let i = 0; i < errors.length; i++) {
+                            errorMessage += '<li>' + errors[i] + '</li>';
+                        }
+
+                        errorMessage += '</ul></div>';
+
+                        errorContainer.innerHTML = errorMessage;
+                        return;
+                    }
+
+                    if (!toggleEditTitle) {
+                        title = null;
+                    }
+
+                    if (!toggleEditDescription) {
+                        description = null;
+                    }
+
+                    const updatedActivity = {
+                        id: activityId,
+                        title: title,
+                        description: description
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o evento para o backend
+                    fetch(`/activities/update/${activityId}`, {
+                        method: "PUT",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                        },
+                        body: JSON.stringify(updatedActivity)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Error updating activity.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+
+                    closeActivityModal();
+
+                    // Fecha o modal
+                    let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditActivity'));
+                    modal.hide();
+                });
+
+                // EDIT ATIVIDADE - CLICK CLOSE BUTTON
+                document.getElementById('modalEditActivityCloseButton').addEventListener('click', closeActivityModal);
+
+                // EDIT ATIVIDADE - CLICK X BUTTON
+                document.getElementById('modalEditActivityXButton').addEventListener('click', closeActivityModal);
+
+                // CLICK OUTSIDE MODAL TO CLOSE
+                window.addEventListener("click", function (event) {
+                    if (event.target === document.getElementById("modalEditTask")) {
+                        closeTaskModal();
+                    } else if (event.target === document.getElementById("modalEditActivity")) {
+                        closeActivityModal();
+                    }
+                });
+
+                // DELETE ATIVIDADE
+                function deleteActivityClickButton() {
+                    const activityId = selectedActivityId;
+
+                    // Confirmação de exclusão
+                    if (!confirm(`Are you sure you want to delete the activity "${activityId}"?`)) {
+                        return;
+                    }
+
+                    // Limpa a seleção
+                    selectedActivityId = null;
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    fetch(`/activities/delete/${activityId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            [csrfHeader]: csrfToken // Inclua o token CSRF no cabeçalho da solicitação
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Error deleting activity.');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+
+                const lists = document.querySelectorAll('.board');
+                const listItems = document.querySelectorAll('.activity');
+
+                lists.forEach(list => {
+                    list.addEventListener('dragover', handleDragOver);
+                    list.addEventListener('drop', handleDrop);
+                });
+
+                listItems.forEach(item => {
+                    item.addEventListener('dragstart', handleDragStart);
+                    item.addEventListener('dragend', handleDragEnd);
+                    item.addEventListener('dblclick', handleDblClick);
+                });
+
+                let draggedItem = null;
+
+                function handleDragStart(event) {
+                    draggedItem = this;
+                    setTimeout(() => this.classList.add('dragging'), 0);
+                }
+
+                function handleDragEnd(event) {
+                    setTimeout(() => this.classList.remove('dragging'), 0);
+                    draggedItem = null;
+                }
+
+                function handleDragOver(event) {
+                    event.preventDefault();
+                }
+
+                function handleDrop(event) {
+                    event.preventDefault();
+                    if (draggedItem && this !== draggedItem.parentNode) {
+                        const activityId = draggedItem.getAttribute('activity-id');
+                        const boardId = this.getAttribute('board-id');
+
+                        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                        fetch(`/activities/move/${boardId}/${activityId}`, {
+                            method: "PUT",
+                            headers: {
+                                'Content-Type': "application/json",
+                                [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                            }
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("Error updating activity.");
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                }
+
+                function handleDblClick(event) {
+                    //console.log("Doble Click on Item");
+                }
+
+                //
+                // SUBATIVIDADES
+                //
+
+                function addSubActivityFunction(event) {
+                    const button = event.target;
+                    const input = button.previousElementSibling;
+                    const subActivityText = input.value.trim();
+                    const activityId = button.closest('li').getAttribute('activity-id');
+
+                    if (subActivityText) {
+                        const newSubActivity = {
+                            text: subActivityText
+                        };
+
+                        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                        fetch(`/subactivities/add/${activityId}`, {
+                            method: "POST",
+                            headers: {
+                                'Content-Type': "application/json",
+                                [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                            },
+                            body: JSON.stringify(newSubActivity)
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("Error saving activity.");
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                input.value = '';
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                }
+
+                function markSubActivityAsDoneFunction(event) {
+                    const check = event.target;
+                    const subActivityId = check.closest('li').getAttribute('sub-activity-id');
+                    const subActivityText = check.closest('li').textContent.trim();
+
+                    const newSubActivity = {
+                        text: subActivityText,
+                        checked: check.checked
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    fetch(`/subactivities/check/${subActivityId}`, {
+                        method: "PUT",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken
+                        },
+                        body: JSON.stringify(newSubActivity)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Error checking activity.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+
+                function deleteSubActivityFunction() {
+                    if (selectedSubActivityId != null) {
+                        const subActivityId = selectedSubActivityId;
+
+                        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                        fetch(`/subactivities/delete/${subActivityId}`, {
+                            method: "DELETE",
+                            headers: {
+                                'Content-Type': "application/json",
+                                [csrfHeader]: csrfToken
+                            },
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("Error deleting activity.");
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Checkboxes das subatividades
+                    const subActivityChecks = document.querySelectorAll('.sub-check');
+                    subActivityChecks.forEach(function(check) {
+                        check.addEventListener('change', markSubActivityAsDoneFunction);
+                    });
+
+                    // Botões de adicionar subatividade
+                    const addButtons = document.querySelectorAll('.add-subactivity-btn');
+                    addButtons.forEach(function(button) {
+                        button.addEventListener('click', addSubActivityFunction);
+                    });
+                });
+            </script>
+            <!--- EDITOR SCRIPT --->
+            <div th:if="${event.getExtendedProps().creator == username}">
+                <script>
+                    const addEditorLink = document.getElementById('addEditorLink');
+                    const editorDropdown = document.getElementById('editorDropdown');
+                    const saveEditors = document.getElementById('saveEditors');
+                    const eventEditors = document.getElementById('eventEditors');
+
+                    // Função que marca os checkboxes que já estão no eventEditors
+                    function markSelectedEditors() {
+                        const currentEditors = eventEditors.textContent.split(',').map(editor => editor.trim());
+                        const checkboxes = editorDropdown.querySelectorAll('input[type="checkbox"]');
+
+                        checkboxes.forEach(checkbox => {
+                            if (currentEditors.includes(checkbox.value)) {
+                                checkbox.checked = true;
+                            } else {
+                                checkbox.checked = false;
+                            }
+                        });
+                    }
+
+                    // Função para exibir ou ocultar a lista ao clicar no link "+ add editor"
+                    addEditorLink.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        editorDropdown.style.display = editorDropdown.style.display === 'block' ? 'none' : 'block';
+                        clearSearchInput();
+                        markSelectedEditors();
+                    });
+
+                    // Clique fora da dropdown, fecha a lista
+                    window.addEventListener('click', function(event) {
+                        if (!editorDropdown.contains(event.target) && !addEditorLink.contains(event.target)) {
+                            editorDropdown.style.display = 'none';
+                            clearSearchInput();
+                        }
+                    });
+
+                    // Função para salvar os editores selecionados
+                    saveEditors.addEventListener('click', function() {
+                        const checkboxes = editorDropdown.querySelectorAll('input[type="checkbox"]:checked');
+                        const selectedEditors = Array.from(checkboxes).map(checkbox => checkbox.value);
+
+                        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                        fetch(`/event/update/${window.eventId}/editors`, {
+                            method: "POST",
+                            headers: {
+                                'Content-Type': "application/json",
+                                [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                            },
+                            body: JSON.stringify(selectedEditors)
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("Error saving editor list.");
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    });
+
+                    // Função para filtrar os editores enquanto digita
+                    function filterUsers() {
+                        let input = document.getElementById('searchInput');
+                        let filter = input.value.toLowerCase();
+                        let editors = document.querySelectorAll('.editor');
+                        let clearBtn = document.getElementById('clearSearch');
+
+                        // Mostrar ou esconder o botão "X"
+                        if (filter.length > 0) {
+                            clearBtn.style.display = "block";
+                        } else {
+                            clearBtn.style.display = "none";
+                        }
+
+                        // Filtrar os editores na lista
+                        editors.forEach(editor => {
+                            let editorName = editor.textContent || editor.innerText;
+
+                            if (editorName.toLowerCase().indexOf(filter) > -1) {
+                                editor.style.display = "block";
+                            } else {
+                                editor.style.display = "none";
+                            }
+                        });
+                    }
+
+                    // Função para limpar a barra de busca
+                    function clearSearchInput() {
+                        let input = document.getElementById('searchInput');
+                        input.value = '';
+                        filterUsers();
+                        input.focus();
+                    }
+                </script>
+            </div>
+            <!--- STATUS SCRIPT --->
+            <script>
+                // Referências aos elementos HTML
+                const changeStatusLink = document.getElementById('changeStatusLink');
+                const statusDropdown = document.getElementById('statusDropdown');
+                const saveStatus = document.getElementById('saveStatus');
+                const eventStatus = document.getElementById('eventStatus');
+
+                // Função que marca os checkboxes que já estão no eventEditors
+                function markSelectedStatus() {
+                    const checkboxes = statusDropdown.querySelectorAll('input[type="checkbox"]');
+
+                    checkboxes.forEach(checkbox => {
+                        if (eventStatus.textContent === checkbox.value) {
+                            checkbox.checked = true;
+                        } else {
+                            checkbox.checked = false;
+                        }
+                    });
+                }
+
+                // Função para exibir ou ocultar a lista ao clicar no link "+ change status"
+                changeStatusLink.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    statusDropdown.style.display = statusDropdown.style.display === 'block' ? 'none' : 'block';
+                    markSelectedStatus();
+                });
+
+                // Clique fora da dropdown, fecha a lista
+                window.addEventListener('click', function(event) {
+                    if (!statusDropdown.contains(event.target) && !changeStatusLink.contains(event.target)) {
+                        statusDropdown.style.display = 'none';
+                    }
+                });
+
+                // Função para salvar o estado
+                saveStatus.addEventListener('click', function() {
+                    const selectedStatus = statusDropdown.querySelector('input[type="checkbox"]:checked');
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    if (selectedStatus != null) {
+                        fetch(`/event/update/${window.eventId}/status`, {
+                            method: "PUT",
+                            headers: {
+                                'Content-Type': "application/json",
+                                [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                            },
+                            body: selectedStatus.value
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("Error updating status.");
+                                }
+                                return response;
+                            })
+                            .then(data => {
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                });
+
+                // Função para garantir que apenas um checkbox seja selecionado de cada vez
+                document.querySelectorAll('.dropdown-content-status input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            document.querySelectorAll('.dropdown-content-status input[type="checkbox"]').forEach(cb => {
+                                if (cb !== this) cb.checked = false;
+                            });
+                        }
+                    });
+                });
+            </script>
+        </div>
+        <!--- SCRIPT PARA DESATIVAR RIGHT CLICK --->
+        <div th:if="${canEdit == false}">
+            <script>
+                // Função para desativar o clique direito
+                document.addEventListener('contextmenu', function(event) {
+                    event.preventDefault();
+                });
+            </script>
+        </div>
+        <!--- SCRIPTS PARA NOTIFICATIONS --->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+        <script>
+            const connectingElement = document.querySelector('.connecting');
+            let stompClient = null;
+
+            function connect() {
+                const socket = new SockJS('/ws');
+                stompClient = Stomp.over(socket);
+
+                stompClient.debug = () => {};
+
+                stompClient.connect({}, onConnected, onError);
+            }
+
+            function onConnected(options) {
+                // Subscrição para o canal do evento - mensagens destinadas para um user especifico
+                stompClient.subscribe(`/event/${window.eventId}/${window.username}`, function (message) {
+                    onUserNotification(JSON.parse(message.body));
+                });
+                // Subscrição para o canal do evento - mensagens destinadas apenas para os editores do evento
+                stompClient.subscribe(`/event/${window.eventId}/editors`, function (message) {
+                    onEditorsNotification(JSON.parse(message.body));
+                });
+                // Subscrição para o canal do evento - mensagens destinadas apenas para o estado do evento
+                stompClient.subscribe(`/event/${window.eventId}/status`, function (message) {
+                    onStatusNotification(JSON.parse(message.body));
+                });
+                // Subscrição para o canal do evento - mensagens destinadas apenas para as tarefas
+                stompClient.subscribe(`/event/${window.eventId}/tasks`, function (message) {
+                    onTaskNotification(JSON.parse(message.body));
+                });
+                // Subscrição para o canal do evento - mensagens destinadas apenas para as atividades
+                stompClient.subscribe(`/event/${window.eventId}/activities`, function (message) {
+                    onActivityNotification(JSON.parse(message.body));
+                });
+                // Subscrição para o canal do evento - mensagens destinadas apenas para as subatividades
+                stompClient.subscribe(`/event/${window.eventId}/subactivities`, function (message) {
+                    onSubActivityNotification(JSON.parse(message.body));
+                });
+            }
+
+            function onError() {
+                connectingElement.textContent = 'Could not connect to WebSocket server. Please refresh this page to try again!';
+                connectingElement.style.color = 'red';
+            }
+
+            async function onUserNotification(message) {
+                if (message.action === 'add') {
+                    location.reload();
+                } else if (message.action === 'remove') {
+                    // Cria um modal de notificação
+                    const modalHtml = `
+                        <div id="notificationModal" style="
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-color: rgba(0, 0, 0, 0.8);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 9999;
+                        ">
+                            <div style="
+                                background-color: #fff;
+                                padding: 30px;
+                                border-radius: 12px;
+                                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                                text-align: center;
+                                max-width: 400px;
+                                width: 100%;
+                                font-family: 'Arial', sans-serif;
+                            ">
+                                <h2 style="
+                                    margin-bottom: 20px;
+                                    font-size: 24px;
+                                    color: #333;
+                                ">Access Revoked</h2>
+                                <p style="
+                                    margin-bottom: 30px;
+                                    font-size: 16px;
+                                    color: #666;
+                                ">You have been removed as an editor. Please reload the page.</p>
+                                <button id="reloadButton" style="
+                                    background-color: #007bff;
+                                    color: #fff;
+                                    padding: 10px 20px;
+                                    font-size: 16px;
+                                    border: none;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    transition: background-color 0.3s ease;
+                                ">Reload Page</button>
+                            </div>
+                        </div>
+                    `;
+
+                    // Desativa qualquer interação na página
+                    document.querySelectorAll('button, input, a').forEach(el => el.disabled = true);
+
+                    // Insere o modal no documento
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                    // Adiciona um listener ao botão para recarregar a página
+                    document.getElementById('reloadButton').addEventListener('click', function() {
+                        location.reload();
+                    });
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            async function onSubActivityNotification(message) {
+                if (message.action === 'create') {
+                    addSubActivity(message.data);
+                } else if (message.action === 'delete') {
+                    deleteSubActivity(message.data);
+                } else if (message.action === 'check') {
+                    markSubActivityAsDone(message.data);
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            async function onActivityNotification(message) {
+                if (message.action === 'create') {
+                    addActivity(message.data);
+                } else if (message.action === 'delete') {
+                    deleteActivity(message.data);
+                } else if (message.action === 'update') {
+                    updateActivity(message.data);
+                } else if (message.action === 'move') {
+                    moveActivity(message.data);
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            async function onTaskNotification(message) {
+                if (message.action === 'create') {
+                    addTask(message.data);
+                } else if (message.action === 'delete') {
+                    deleteTask(message.data);
+                } else if (message.action === 'update') {
+                    updateTask(message.data);
+                } else if (message.action === 'up') {
+                    upTask(message.data);
+                } else if (message.action === 'down') {
+                    downTask(message.data);
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            async function onStatusNotification(message) {
+                if (message.action === 'update') {
+                    try {
+                        statusDropdown.style.display = 'none';
+                    } catch (e) {
+
+                    }
+                    updateStatus(message.data);
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            async function onEditorsNotification(message) {
+                if (message.action === 'update') {
+                    try {
+                        editorDropdown.style.display = 'none';
+                    } catch (e) {
+
+                    }
+                    updateEditors(message.data);
+                } else {
+                    console.log("Unexpected Action");
+                }
+            }
+
+            connect();
+        </script>
+    </body>
+</html>
