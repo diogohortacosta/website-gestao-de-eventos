@@ -1,5 +1,6 @@
 # Website para Gestão de Eventos para Empresas
 O projeto utiliza a arquitetura Spring Boot Maven no backend e, no frontend, recorre a HTML, CSS, Bootstrap e JavaScript. A base de dados usada é MySQL.
+
 Funcionalidades principais:
 - Autenticação de utilizadores (Login).
 - Calendário para visualização e organização de eventos.
