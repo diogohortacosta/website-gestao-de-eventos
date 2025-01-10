@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Calendário</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css' rel='stylesheet'>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css' rel='stylesheet' />
+        <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js'></script>
+        <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/locales/pt.js'></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+        <meta name="_csrf_header" th:content="${_csrf.getHeaderName()}" />
+        <meta name="_csrf" th:content="${_csrf.getToken()}" />
+
+        <!--- STYLE --->
+        <style>
+            body {
+                overflow-x: hidden;
+            }
+
+            footer {
+                left: 0;
+                bottom: 0;
+                width: 100%;
+            }
+
+            #buttonGeral {
+                background-color: #99e699;
+                border-color: #70db70;
+            }
+
+            #buttonPersonal {
+                display: none;
+                background-color: #99e699;
+                border-color: #70db70;
+            }
+
+            #buttonAddEvent {
+                background-color: #99e699;
+                border-color: #70db70;
+            }
+
+            #textGeral {
+                display: none;
+            }
+
+            #textPersonal {
+
+            }
+
+            #calendarPersonal,
+            #calendarGeral {
+            }
+            .fc-toolbar-title {
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #66b3ff;
+            }
+            .fc-button-primary {
+                background-color: #66b3ff;
+                border-color: #66b3ff;
+            }
+            .fc-button-primary:hover {
+                background-color: #66b3ff;
+                border-color: #66b3ff;
+            }
+            .fc-event {
+                border: none;
+                border-radius: 5px;
+            }
+        </style>
+
+        <!--- DESATIVAR RIGHT CLICK --->
+        <script>
+            // Função para desativar o clique direito
+            document.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+            });
+        </script>
+
+        <!--- OUTROS --->
+        <script>
+            // UPDATE EVENT DISPLA
+            function updateEventDisplay(id, title, creatorName, description, durationText, status, allDay, start, end, color, textColor) {
+                document.getElementById('eventId').textContent = id;
+                document.getElementById('eventTitle').textContent = title;
+                document.getElementById('eventCreator').textContent = creatorName;
+                document.getElementById('eventDescription').textContent = description;
+                document.getElementById('eventDuration').textContent = durationText;
+                document.getElementById('eventStatus').textContent = status;
+                document.getElementById('eventAllDay').textContent = allDay;
+                document.getElementById('eventStartDate').textContent = start;
+                document.getElementById('eventEndDate').textContent = end;
+                document.getElementById('eventColor').textContent = color;
+                document.getElementById('eventTextColor').textContent = textColor;
+            }
+
+            // RESET DO FORMULÁRIO DO ADD EVENTO
+            function resetAddEventForm() {
+                document.getElementById('addTitle').value = "";
+                document.getElementById('addDescription').value = "";
+                document.getElementById('allDayCheck').checked = false;
+                document.getElementById('addStartDate').value = "";
+                document.getElementById('addEndDate').value = "";
+                document.getElementById('addBackgroundColor').value = "#0088ff";
+                document.getElementById('addTextColor').value = "#ffffff";
+                document.getElementById('errorContainer').innerHTML = '';
+            }
+
+            // MUDA O TYPE DO INPUT
+            function changeInputType(inputId, newType) {
+                let inputElement = document.getElementById(inputId);
+                if (inputElement) {
+                    let newInputElement = document.createElement('input');
+                    newInputElement.type = newType;
+                    newInputElement.className = inputElement.className;
+                    newInputElement.id = inputElement.id;
+                    inputElement.parentNode.replaceChild(newInputElement, inputElement);
+                } else {
+                    console.error('Elemento de entrada não encontrado com o ID fornecido.');
+                }
+            }
+        </script>
+
+        <!--- CALENDÁRIOS --->
+        <script th:inline="javascript">
+            /*<![CDATA[*/
+            const creator = /*[[${username}]]*/ [];
+            /*]]>*/
+
+            let gereralCalendar, personalCalendar;
+
+            document.addEventListener('DOMContentLoaded', function () {
+                let selectedEvent = null;
+
+                function fetchEvents(url, callback) {
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(error => console.error('Error fetching events:', error));
+                }
+
+                function initializeCalendar(calendarEl, events, editable) {
+                    let calendar = new FullCalendar.Calendar(calendarEl, {
+                        timeZone: 'UTC',
+                        locale: 'pt',
+                        themeSystem: 'bootstrap5',
+                        handleWindowResize: true,
+                        stickyHeaderDates: true,
+                        initialView: 'dayGridMonth',
+                        firstDay: 0,
+                        dayMaxEvents: true,
+                        businessHours: true,
+                        navLinks: true,
+                        headerToolbar: {
+                            left: 'today,prev,next',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                        },
+                        footerToolbar: {
+                            left: '',
+                            center: '',
+                            right: 'today,prev,next'
+                        },
+                        buttonText: {
+                            today: 'Hoje',
+                            month: 'Mês',
+                            week: 'Semana',
+                            day: 'Dia',
+                            list: 'Lista'
+                        },
+                        eventClick: function (info) {
+                            let id = info.event.id || "N/A";
+                            let title = info.event.title || "N/A";
+                            let creatorName = info.event.extendedProps.creator || "N/A";
+                            let description = info.event.extendedProps.description || "N/A";
+                            let allDay = info.event.allDay.toString();
+                            let start = info.event.start ? moment(info.event.start).utc().format('YYYY-MM-DDTHH:mm') : null;
+                            let end = info.event.end ? moment(info.event.end).utc().format('YYYY-MM-DDTHH:mm') : null;
+                            let color = info.event.backgroundColor || "N/A";
+                            let textColor = info.event.textColor || "N/A";
+                            let status = info.event.extendedProps.status || "N/A";
+
+                            let durationText = "N/A";
+                            if (end) {
+                                let duration = moment.duration(moment(info.event.end).diff(moment(info.event.start)));
+                                let days = duration.days();
+                                let hours = duration.hours();
+                                let minutes = duration.minutes();
+
+                                if (days > 0) {
+                                    durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                } else if (hours > 0) {
+                                    durationText = hours + " Horas e " + minutes + " Minutos";
+                                } else {
+                                    durationText = minutes + " Minutos";
+                                }
+                            }
+
+                            selectedEvent = {
+                                id: id,
+                                title: title,
+                                start: start,
+                                end: end,
+                                allDay: allDay,
+                                backgroundColor: color,
+                                textColor: textColor,
+                                extendedProps: {
+                                    description: description,
+                                    creator: creatorName,
+                                    status: status
+                                }
+                            };
+
+                            updateEventDisplay(id, title, creatorName, description, durationText, status, allDay, start, end, color, textColor);
+                        },
+                        editable: editable,
+                        eventDrop: function(info) {
+                            if (info.event.end === null) {
+                                let newEndDate = new Date(info.event.start);
+                                newEndDate.setHours(newEndDate.getHours() + 1);
+                                info.event.setEnd(newEndDate);
+                            }
+
+                            const updatedEvent = {
+                                id: info.event.id,
+                                title: info.event.title,
+                                start: moment(info.event.start).utc().format('YYYY-MM-DDTHH:mm'),
+                                end: moment(info.event.end).utc().format('YYYY-MM-DDTHH:mm'),
+                                allDay: info.event.allDay,
+                                backgroundColor: info.event.backgroundColor,
+                                textColor: info.event.textColor,
+                                extendedProps: {
+                                    description: info.event.extendedProps.description,
+                                    creator: info.event.extendedProps.creator,
+                                    status: info.event.extendedProps.status
+                                }
+                            };
+
+                            // Fetch CSRF token
+                            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                            // Send the updated event to the backend
+                            fetch(`/events/update/${info.event.id}`, {
+                                method: "PUT",
+                                headers: {
+                                    'Content-Type': "application/json",
+                                    [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                                },
+                                body: JSON.stringify(updatedEvent)
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error("Erro ao atualizar o evento (Dragged).");
+                                    }
+                                    return response.json();
+                                })
+                                .then(data => {
+                                    let durationText = "N/A";
+                                    if (data.end) {
+                                        let duration = moment.duration(moment(data.end).diff(moment(data.start)));
+                                        let days = duration.days();
+                                        let hours = duration.hours();
+                                        let minutes = duration.minutes();
+
+                                        if (days > 0) {
+                                            durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                        } else if (hours > 0) {
+                                            durationText = hours + " Horas e " + minutes + " Minutos";
+                                        } else {
+                                            durationText = minutes + " Minutos";
+                                        }
+                                    }
+
+                                    selectedEvent = {
+                                        id: data.id,
+                                        title: data.title,
+                                        start: data.start,
+                                        end: data.end,
+                                        allDay: data.allDay.toString(),
+                                        backgroundColor: data.backgroundColor,
+                                        textColor: data.textColor,
+                                        extendedProps: {
+                                            description: data.extendedProps.description,
+                                            creator: data.extendedProps.creator,
+                                            status: data.extendedProps.status
+                                        }
+                                    };
+
+                                    if (calendarEl.id === 'calendarGeral') {
+                                        updateCalendarEvent(personalCalendar, data);
+                                    }
+                                    else if (calendarEl.id === 'calendarPersonal') {
+                                        updateCalendarEvent(gereralCalendar, data);
+                                    }
+
+                                    updateEventDisplay(data.id, data.title, data.extendedProps.creator, data.extendedProps.description, durationText, data.extendedProps.status, data.allDay.toString(), data.start, data.end, data.backgroundColor, data.textColor);
+                                    console.log("Evento Atualizado (Dragged)!");
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                });
+                        },
+                        eventDragStart: function(info) {
+                            let id = info.event.id || "N/A";
+                            let title = info.event.title || "N/A";
+                            let creatorName = info.event.extendedProps.creator || "N/A";
+                            let description = info.event.extendedProps.description || "N/A";
+                            let allDay = info.event.allDay.toString();
+                            let start = info.event.start ? moment(info.event.start).utc().format('YYYY-MM-DDTHH:mm') : null;
+                            let end = info.event.end ? moment(info.event.end).utc().format('YYYY-MM-DDTHH:mm') : null;
+                            let color = info.event.backgroundColor || "N/A";
+                            let textColor = info.event.textColor || "N/A";
+                            let status = infor.event.extendedProps.status || "N/A";
+
+                            let durationText = "N/A";
+                            if (end) {
+                                let duration = moment.duration(moment(info.event.end).diff(moment(info.event.start)));
+                                let days = duration.days();
+                                let hours = duration.hours();
+                                let minutes = duration.minutes();
+
+                                if (days > 0) {
+                                    durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                } else if (hours > 0) {
+                                    durationText = hours + " Horas e " + minutes + " Minutos";
+                                } else {
+                                    durationText = minutes + " Minutos";
+                                }
+                            }
+
+                            selectedEvent = {
+                                id: id,
+                                title: title,
+                                start: start,
+                                end: end,
+                                allDay: allDay,
+                                backgroundColor: color,
+                                textColor: textColor,
+                                extendedProps: {
+                                    description: description,
+                                    creator: creatorName,
+                                    status: status
+                                }
+                            };
+
+                            updateEventDisplay(id, title, creatorName, description, durationText, status, allDay, start, end, color, textColor);
+                        },
+                        eventResize: function(info) {
+                            const updatedEvent = {
+                                id: info.event.id,
+                                title: info.event.title,
+                                start: info.event.start.toISOString(),
+                                end: info.event.end.toISOString(),
+                                allDay: info.event.allDay,
+                                backgroundColor: info.event.backgroundColor,
+                                textColor: info.event.textColor,
+                                extendedProps: {
+                                    description: info.event.extendedProps.description,
+                                    creator: info.event.extendedProps.creator,
+                                    status: info.event.extendedProps.status
+                                }
+                            };
+
+                            // Fetch CSRF token
+                            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                            // Send the updated event to the backend
+                            fetch(`/events/update/${info.event.id}`, {
+                                method: "PUT",
+                                headers: {
+                                    'Content-Type': "application/json",
+                                    [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                                },
+                                body: JSON.stringify(updatedEvent)
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error("Erro ao atualizar o evento (Resized).");
+                                    }
+                                    return response.json();
+                                })
+                                .then(data => {
+                                    let durationText = "N/A";
+                                    if (data.end) {
+                                        let duration = moment.duration(moment(data.end).diff(moment(data.start)));
+                                        let days = duration.days();
+                                        let hours = duration.hours();
+                                        let minutes = duration.minutes();
+
+                                        if (days > 0) {
+                                            durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                        } else if (hours > 0) {
+                                            durationText = hours + " Horas e " + minutes + " Minutos";
+                                        } else {
+                                            durationText = minutes + " Minutos";
+                                        }
+                                    }
+
+                                    selectedEvent = {
+                                        id: data.id,
+                                        title: data.title,
+                                        start: data.start,
+                                        end: data.end,
+                                        allDay: data.allDay.toString(),
+                                        backgroundColor: data.backgroundColor,
+                                        textColor: data.textColor,
+                                        extendedProps: {
+                                            description: data.extendedProps.description,
+                                            creator: data.extendedProps.creator,
+                                            status: data.extendedProps.status
+                                        }
+                                    };
+
+                                    if (calendarEl.id === 'calendarGeral') {
+                                        updateCalendarEvent(personalCalendar, data);
+                                    }
+                                    else if (calendarEl.id === 'calendarPersonal') {
+                                        updateCalendarEvent(gereralCalendar, data);
+                                    }
+
+                                    updateEventDisplay(data.id, data.title, data.extendedProps.creator, data.extendedProps.description, durationText, data.extendedProps.status, data.allDay.toString(), data.start, data.end, data.backgroundColor, data.textColor);
+                                    console.log("Evento Atualizado (Resized)!");
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                });
+                        },
+                        events: events
+                    });
+                    calendar.render();
+
+                    // Double-click event listener
+                    let lastClickTime = 0;
+                    calendarEl.addEventListener('click', function(e) {
+                        let currentTime = new Date().getTime();
+                        if (currentTime - lastClickTime < 300 && selectedEvent) { // 300ms threshold for double click
+                            if (selectedEvent) {
+                                window.location.href = `/event/${selectedEvent.id}`; // Adjust URL as needed
+                            }
+                        }
+                        lastClickTime = currentTime;
+                    });
+
+                    return calendar;
+                }
+
+                fetchEvents('/api/events/all', function(generalEvents) {
+                    gereralCalendar = initializeCalendar(document.getElementById('calendarGeral'), generalEvents, false);
+                });
+
+                fetchEvents('/api/events/personal', function(personalEvents) {
+                    personalCalendar = initializeCalendar(document.getElementById('calendarPersonal'), personalEvents, true);
+                });
+
+                document.getElementById('calendarGeral').style.display = 'none';
+
+                // FUNÇÃO PARA ATUALIZAR O EVENTO NOS CALENDÁRIOS
+                function updateCalendarEvent(calendar, event) {
+                    let calendarEvent = calendar.getEventById(event.id);
+                    if (calendarEvent) {
+                        calendarEvent.setProp('title', event.title);
+                        calendarEvent.setStart(event.start);
+                        calendarEvent.setEnd(event.end);
+                        calendarEvent.setAllDay(event.allDay);
+                        calendarEvent.setProp('backgroundColor', event.backgroundColor);
+                        calendarEvent.setProp('textColor', event.textColor);
+                        calendarEvent.setExtendedProp('description', event.extendedProps.description);
+                        calendarEvent.setExtendedProp('creator', event.extendedProps.creator);
+
+                        // dar end = null
+                    }
+                }
+
+                // CRIAR NOVO EVENTO
+                document.getElementById('modalSaveEventButton').addEventListener('click', function () {
+                    const title = document.getElementById('addTitle').value;
+                    const description = document.getElementById('addDescription').value;
+                    const allDay = document.getElementById('allDayCheck').checked;
+                    const start = allDay ? document.getElementById('addStartDate').value + "T00:00" : document.getElementById('addStartDate').value;
+                    let end = allDay ? document.getElementById('addEndDate').value + "T00:00" : document.getElementById('addEndDate').value;
+                    const backgroundColor = document.getElementById('addBackgroundColor').value;
+                    const textColor = document.getElementById('addTextColor').value;
+
+                    let errorContainer = document.getElementById('errorContainer');
+                    errorContainer.innerHTML = "";
+
+                    let errors = [];
+
+                    if (title === "") {
+                        errors.push("Por favor, preencha o campo Título.");
+                    }
+
+                    if (description === "") {
+                        errors.push("Por favor, preencha o campo Descrição.");
+                    }
+
+                    if (start === "") {
+                        errors.push("Por favor, selecione a Data Início.");
+                    }
+
+                    if (end === "") {
+                        errors.push("Por favor, selecione a Data Final.");
+                    }
+
+                    if (allDay === false && start !== "" && end !== "") {
+                        const startDate = new Date(start);
+                        const endDate = new Date(end);
+
+                        const minTimeInMillis = 3600000; // 1 hora em milissegundos
+                        const duration = endDate - startDate;
+
+                        if (duration < minTimeInMillis) {
+                            errors.push("O evento tem que ter no mínimo 1 Hora.");
+                        }
+                    }
+
+                    if (errors.length > 0) {
+                        let errorMessage = '<div class="alert alert-danger mb-3" role="alert">';
+                        errorMessage += '<strong>Erro!</strong><ul>';
+
+                        for (let i = 0; i < errors.length; i++) {
+                            errorMessage += '<li>' + errors[i] + '</li>';
+                        }
+
+                        errorMessage += '</ul></div>';
+
+                        errorContainer.innerHTML = errorMessage;
+                        return;
+                    }
+
+                    if (allDay === true && start === end) {
+                        let endDate = new Date(end);
+
+                        // Adicionar um dia (24 horas * 60 minutos * 60 segundos * 1000 milissegundos)
+                        endDate.setDate(endDate.getDate() + 1);
+
+                        // Converter de volta para o formato "YYYY-MM-DDTHH:mm"
+                        const year = endDate.getFullYear();
+                        const month = String(endDate.getMonth() + 1).padStart(2, '0'); // Meses são baseados em zero
+                        const day = String(endDate.getDate()).padStart(2, '0');
+                        const hours = String(endDate.getHours()).padStart(2, '0');
+                        const minutes = String(endDate.getMinutes()).padStart(2, '0');
+
+                        end = `${year}-${month}-${day}T${hours}:${minutes}`;
+                    }
+
+                    // Cria o novo evento
+                    const newEvent = {
+                        id: null,
+                        title: title,
+                        start: start,
+                        end: end,
+                        allDay: allDay,
+                        backgroundColor: backgroundColor,
+                        textColor: textColor,
+                        extendedProps: {
+                            description: description,
+                            creator: null,
+                            status: "Pending"
+                        }
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o novo evento para o backend
+                    fetch("/events/add", {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                        },
+                        body: JSON.stringify(newEvent)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Erro ao salvar o evento.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Adiciona o evento ao calendário após ser salvo no backend
+                            newEvent.id = data.id;
+                            newEvent.extendedProps.creator = data.extendedProps.creator;
+                            gereralCalendar.addEvent(newEvent);
+                            personalCalendar.addEvent(newEvent);
+
+                            let durationText = "N/A";
+                            if (data.end) {
+                                let duration = moment.duration(moment(data.end).diff(moment(data.start)));
+                                let days = duration.days();
+                                let hours = duration.hours();
+                                let minutes = duration.minutes();
+
+                                if (days > 0) {
+                                    durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                } else if (hours > 0) {
+                                    durationText = hours + " Horas e " + minutes + " Minutos";
+                                } else {
+                                    durationText = minutes + " Minutos";
+                                }
+                            }
+
+                            selectedEvent = {
+                                id: data.id,
+                                title: data.title,
+                                start: data.start,
+                                end: data.end,
+                                allDay: data.allDay.toString(),
+                                backgroundColor: data.backgroundColor,
+                                textColor: data.textColor,
+                                extendedProps: {
+                                    description: data.extendedProps.description,
+                                    creator: data.extendedProps.creator,
+                                    status: data.extendedProps.status
+                                }
+                            };
+
+                            updateEventDisplay(data.id, data.title, data.extendedProps.creator, data.extendedProps.description, durationText, data.extendedProps.status, data.allDay.toString(), data.start, data.end, data.backgroundColor, data.textColor);
+                            console.log("Evento Adicionado!");
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+
+                    // Fecha o modal
+                    let modal = bootstrap.Modal.getInstance(document.getElementById('modalAddEvent'));
+                    modal.hide();
+
+                    // Limpa os campos do formulário
+                    resetAddEventForm();
+                });
+
+                // DELETE EVENTO
+                document.getElementById('DeleteEventButton').addEventListener('click', function () {
+                    if (selectedEvent === null) {
+                        alert("Nenhum evento selecionado!");
+                        return;
+                    }
+
+                    if (selectedEvent.extendedProps.creator !== creator) {
+                        alert("Não é possivel você eliminar este evento!");
+                        return;
+                    }
+
+                    // Confirmação de exclusão
+                    if (!confirm(`Tem certeza que deseja excluir o evento "${selectedEvent.title}"?`)) {
+                        return;
+                    }
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    fetch(`/events/delete/${selectedEvent.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            [csrfHeader]: csrfToken // Inclua o token CSRF no cabeçalho da solicitação
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Erro ao excluir o evento.');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Verifique se a resposta contém a mensagem esperada
+                            if (data.message) {
+                                // Remove o evento do calendário
+                                gereralCalendar.getEventById(selectedEvent.id)?.remove();
+                                personalCalendar.getEventById(selectedEvent.id)?.remove();
+
+                                console.log(data.message);
+
+                                // Limpa a seleção
+                                selectedEvent = null;
+                                updateEventDisplay("texto", "texto", "texto", "texto", "texto", "texto", "texto", "data", "data", "texto", "texto");
+                            } else {
+                                throw new Error('Resposta inesperada da API.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                });
+
+                // EDIT EVENTO - CLICK EDIT BUTTON
+                document.getElementById('EditEventButton').addEventListener('click', function () {
+                    if (selectedEvent === null) {
+                        alert("Nenhum evento selecionado!");
+                        return;
+                    }
+
+                    if (selectedEvent.extendedProps.creator !== creator) {
+                        alert("Não é possivel você editar este evento!");
+                        return;
+                    }
+
+                    // Preenche os campos do modal com os dados do evento selecionado
+                    document.getElementById('editTitle').value = selectedEvent.title;
+                    document.getElementById('editDescription').value = selectedEvent.extendedProps.description;
+                    document.getElementById('editBackgroundColor').value = selectedEvent.backgroundColor;
+                    document.getElementById('editTextColor').value = selectedEvent.textColor;
+                    document.getElementById('editStatus').value = selectedEvent.extendedProps.status;
+
+                    if (selectedEvent.allDay === "true") {
+                        document.getElementById('editAllDayCheck').checked = true;
+                        changeEditDataType();
+                        document.getElementById('editStartDate').value = selectedEvent.start.split('T')[0];
+                        document.getElementById('editEndDate').value = selectedEvent.end.split('T')[0];
+                    }
+                    else {
+                        document.getElementById('editAllDayCheck').checked = false;
+                        changeEditDataType();
+                        document.getElementById('editStartDate').value = selectedEvent.start;
+                        document.getElementById('editEndDate').value = selectedEvent.end;
+                    }
+
+                    // Abre o modal
+                    let modalElement = document.getElementById('modalEditEvent');
+                    let modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                });
+
+                // EDIT EVENTO - CLICK SAVE BUTTON
+                document.getElementById('modalEditEventButton').addEventListener('click', function () {
+                    const id = selectedEvent.id;
+                    const title = document.getElementById('editTitle').value;
+                    const creator = selectedEvent.extendedProps.creator;
+                    const description = document.getElementById('editDescription').value;
+                    const allDay = document.getElementById('editAllDayCheck').checked;
+                    const start = allDay ? document.getElementById('editStartDate').value + "T00:00" : document.getElementById('editStartDate').value;
+                    let end = allDay ? document.getElementById('editEndDate').value + "T00:00" : document.getElementById('editEndDate').value;
+                    const backgroundColor = document.getElementById('editBackgroundColor').value;
+                    const textColor = document.getElementById('editTextColor').value;
+                    const status = document.getElementById('editStatus').value;
+
+                    let errorContainer = document.getElementById('errorContainer2');
+                    errorContainer.innerHTML = "";
+
+                    let errors = [];
+
+                    if (title === "") {
+                        errors.push("Por favor, preencha o campo Título.");
+                    }
+
+                    if (description === "") {
+                        errors.push("Por favor, preencha o campo Descrição.");
+                    }
+
+                    if (start === "") {
+                        errors.push("Por favor, selecione a Data Início.");
+                    }
+
+                    if (end === "") {
+                        errors.push("Por favor, selecione a Data Final.");
+                    }
+
+                    if (allDay === false && start !== "" && end !== "") {
+                        const startDate = new Date(start);
+                        const endDate = new Date(end);
+
+                        const minTimeInMillis = 3600000; // 1 hora em milissegundos
+                        const duration = endDate - startDate;
+
+                        if (duration < minTimeInMillis) {
+                            errors.push("O evento tem que ter no mínimo 1 Hora.");
+                        }
+                    }
+
+                    if (errors.length > 0) {
+                        let errorMessage = '<div class="alert alert-danger mb-3" role="alert">';
+                        errorMessage += '<strong>Erro!</strong><ul>';
+
+                        for (let i = 0; i < errors.length; i++) {
+                            errorMessage += '<li>' + errors[i] + '</li>';
+                        }
+
+                        errorMessage += '</ul></div>';
+
+                        errorContainer.innerHTML = errorMessage;
+                        return;
+                    }
+
+                    if (allDay === true && start === end) {
+                        let endDate = new Date(end);
+
+                        // Adicionar um dia (24 horas * 60 minutos * 60 segundos * 1000 milissegundos)
+                        endDate.setDate(endDate.getDate() + 1);
+
+                        // Converter de volta para o formato "YYYY-MM-DDTHH:mm"
+                        const year = endDate.getFullYear();
+                        const month = String(endDate.getMonth() + 1).padStart(2, '0'); // Meses são baseados em zero
+                        const day = String(endDate.getDate()).padStart(2, '0');
+                        const hours = String(endDate.getHours()).padStart(2, '0');
+                        const minutes = String(endDate.getMinutes()).padStart(2, '0');
+
+                        end = `${year}-${month}-${day}T${hours}:${minutes}`;
+                    }
+
+                    // Cria o novo evento
+                    const updatedEvent = {
+                        id: id,
+                        title: title,
+                        start: start,
+                        end: end,
+                        allDay: allDay,
+                        backgroundColor: backgroundColor,
+                        textColor: textColor,
+                        extendedProps: {
+                            description: description,
+                            creator: creator,
+                            status: status
+                        }
+                    };
+
+                    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                    // Envia o evento para o backend
+                    fetch(`/events/update/${selectedEvent.id}`, {
+                        method: "PUT",
+                        headers: {
+                            'Content-Type': "application/json",
+                            [csrfHeader]: csrfToken // Include the CSRF token in the request header
+                        },
+                        body: JSON.stringify(updatedEvent)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Erro ao atualizar o evento.");
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            let durationText = "N/A";
+                            if (data.end) {
+                                let duration = moment.duration(moment(data.end).diff(moment(data.start)));
+                                let days = duration.days();
+                                let hours = duration.hours();
+                                let minutes = duration.minutes();
+
+                                if (days > 0) {
+                                    durationText = days + " Dias, " + hours + " Horas e " + minutes + " Minutos";
+                                } else if (hours > 0) {
+                                    durationText = hours + " Horas e " + minutes + " Minutos";
+                                } else {
+                                    durationText = minutes + " Minutos";
+                                }
+                            }
+
+                            selectedEvent = {
+                                id: data.id,
+                                title: data.title,
+                                start: data.start,
+                                end: data.end,
+                                allDay: data.allDay.toString(),
+                                backgroundColor: data.backgroundColor,
+                                textColor: data.textColor,
+                                extendedProps: {
+                                    description: data.extendedProps.description,
+                                    creator: data.extendedProps.creator,
+                                    status: data.extendedProps.status
+                                }
+                            };
+
+                            updateCalendarEvent(gereralCalendar, data);
+                            updateCalendarEvent(personalCalendar, data);
+
+                            updateEventDisplay(data.id, data.title, data.extendedProps.creator, data.extendedProps.description, durationText, data.extendedProps.status, data.allDay.toString(), data.start, data.end, data.backgroundColor, data.textColor);
+                            console.log("Evento Atualizado!");
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+
+                    // Fecha o modal
+                    let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditEvent'));
+                    modal.hide();
+                });
+            });
+        </script>
+
+        <!--- MUDA O CALENDÁRIO A VER --->
+        <script>
+            function showPersonalCalendar() {
+                document.getElementById('calendarPersonal').style.display = 'block';
+                document.getElementById('buttonPersonal').style.display = 'none';
+                document.getElementById('textPersonal').style.display = 'block';
+                document.getElementById('calendarGeral').style.display = 'none';
+                document.getElementById('buttonGeral').style.display = 'block';
+                document.getElementById('textGeral').style.display = 'none';
+                personalCalendar.render();
+            }
+
+            function showGeneralCalendar() {
+                document.getElementById('calendarPersonal').style.display = 'none';
+                document.getElementById('buttonPersonal').style.display = 'block';
+                document.getElementById('textPersonal').style.display = 'none';
+                document.getElementById('calendarGeral').style.display = 'block';
+                document.getElementById('buttonGeral').style.display = 'none';
+                document.getElementById('textGeral').style.display = 'block';
+                gereralCalendar.render();
+            }
+        </script>
+
+        <!--- CHECKBOX DIA T0DO  --->
+        <script>
+            function changeAddDataType() {
+                let checkBox = document.getElementById("allDayCheck");
+
+                if (checkBox.checked) {
+                    changeInputType('addStartDate', 'date');
+                    changeInputType('addEndDate', 'date');
+                }
+                else {
+                    changeInputType('addStartDate', 'datetime-local');
+                    changeInputType('addEndDate', 'datetime-local');
+
+                }
+            }
+
+            // ALTERAL O TIPO DE DADO BASEADO NA CHECKBOX "ALL DAY"
+            function changeEditDataType() {
+                let checkBox = document.getElementById('editAllDayCheck');
+
+                if (checkBox.checked) {
+                    changeInputType('editStartDate', 'date');
+                    changeInputType('editEndDate', 'date');
+                } else {
+                    changeInputType('editStartDate', 'datetime-local');
+                    changeInputType('editEndDate', 'datetime-local');
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <!--- HEADER --->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Projeto</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/home}">| Home |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/calendar}">| Calendar |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/chat}">| Chat |</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" th:href="@{/logout}">| Logout |</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        <!--- BODY --->
+        <div class="row" style="margin: 10px;">
+            <!--- HEADLINE --->
+            <div>
+                <h1 id="textPersonal" align="center" style="color: #007bff">Personal Calendar</h1>
+                <h1 id="textGeral" align="center" style="color: #dd2f2f">General Calendar</h1>
+            </div>
+            <!-- CALENDAR -->
+            <div id="calendars" class="col-lg-9">
+                <div id="calendarPersonal"></div>
+                <div id="calendarGeral"></div>
+            </div>
+            <!-- EVENT INFO DISPLAY -->
+            <div id="eventDisplay" class="col-lg-3">
+                <!-- BOTÕES DE TROCA DE CALENDÁRIO E BOTÃO PARA ADICIONAR EVENTO -->
+                <div id="buttons" class="d-flex justify-content-left">
+                    <button id="buttonPersonal" class="btn btn-primary col-lg-7" onclick="showPersonalCalendar()">Personal Calendar</button>
+                    <button id="buttonGeral" class="btn btn-primary col-lg-7" onclick="showGeneralCalendar()">General Calendar</button>
+                    <button id="buttonAddEvent" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddEvent">Add Evento</button>
+                </div>
+                <!--- CARD EVENT --->
+                <div id="eventInfo" class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Event</h3>
+                        <div class="btn-group">
+                            <button id="EditEventButton" class="btn btn-primary">Edit</button>
+                            <button id="DeleteEventButton" class="btn btn-danger">Delete</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Id:</strong> <span id="eventId">text</span></p>
+                        <p><strong>Title:</strong> <span id="eventTitle">text</span></p>
+                        <p><strong>Creator:</strong> <span id="eventCreator">text</span></p>
+                        <p><strong>Description:</strong> <span id="eventDescription">text</span></p>
+                        <p><strong>Duration:</strong> <span id="eventDuration">text</span></p>
+                        <p><strong>Status:</strong> <span id="eventStatus">text</span></p>
+                        <p><strong>All Day:</strong> <span id="eventAllDay">text</span></p>
+                        <p><strong>Start Date:</strong> <span id="eventStartDate">date</span></p>
+                        <p><strong>End Date:</strong> <span id="eventEndDate">date</span></p>
+                        <p><strong>Background Color:</strong> <span id="eventColor">text</span></p>
+                        <p><strong>Text Color:</strong> <span id="eventTextColor">text</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--- FOOTER --->
+        <footer class="bg-dark text-white mt-4">
+            <div class="container-fluid py-3">
+                <div class="row">
+                    <div class="col-md-12 text-center text-md-start">
+                        <p class="mb-0">© 2024 Projeto. Todos os direitos reservados.</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <!--- MODAL ADD EVENT --->
+        <div class="modal" id="modalAddEvent">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <!-- MODAL HEADER -->
+                    <div class="modal-header">
+                        <h4 class="modal-title">Create Event</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <!-- MODAL BODY -->
+                    <div class="modal-body">
+                        <div id="errorContainer" class="mb-3"></div>
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label" for="addTitle">Title:</label>
+                                <input type="text" class="form-control" id="addTitle">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="addDescription">Description:</label>
+                                <input type="text" class="form-control" id="addDescription">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <label class="form-check-label" for="allDayCheck">All Day</label>
+                                <input type="checkbox" class="form-check-input" id="allDayCheck" onclick="changeAddDataType()">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="addStartDate">Start Date:</label>
+                                <input type="datetime-local" class="form-control" id="addStartDate">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="addEndDate">End Date:</label>
+                                <input type="datetime-local" class="form-control" id="addEndDate">
+                            </div>
+                            <div class="d-flex ">
+                                <div class="mb-3 me-3">
+                                    <label class="form-label" for="addBackgroundColor">Background Color:</label>
+                                    <input type="color" class="form-control" id="addBackgroundColor" value="#0088ff">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="addTextColor">Text Color:</label>
+                                    <input type="color" class="form-control" id="addTextColor" value="#ffffff">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- MODAL FOOTER -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                        <button type="button" id="modalSaveEventButton" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--- MODAL EDIT EVENT --->
+        <div class="modal" id="modalEditEvent">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <!-- MODAL HEADER -->
+                    <div class="modal-header">
+                        <h4 class="modal-title">Edit Event</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <!-- MODAL BODY -->
+                    <div class="modal-body">
+                        <div id="errorContainer2" class="mb-3"></div>
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label" for="editTitle">Title:</label>
+                                <input type="text" class="form-control" id="editTitle">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editDescription">Description:</label>
+                                <input type="text" class="form-control" id="editDescription">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editStatus">Status:</label>
+                                <select class="form-control" id="editStatus">
+                                    <option value="Pending">Pending</option>
+                                    <option value="Inprogress">Inprogress</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Finished">Finished</option>
+                                    <option value="Canceled">Canceled</option>
+                                    <option value="Rescheduled">Rescheduled</option>
+                                </select>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <label class="form-check-label" for="editAllDayCheck">All Day</label>
+                                <input type="checkbox" class="form-check-input" id="editAllDayCheck" onclick="changeEditDataType()">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editStartDate">Start Date:</label>
+                                <input type="datetime-local" class="form-control" id="editStartDate">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="editEndDate">End Date:</label>
+                                <input type="datetime-local" class="form-control" id="editEndDate" value="2024-07-30T15:30">
+                            </div>
+                            <div class="d-flex ">
+                                <div class="mb-3 me-3">
+                                    <label class="form-label" for="editBackgroundColor">Background Date:</label>
+                                    <input type="color" class="form-control" id="editBackgroundColor" value="#0088ff">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="editTextColor">Text Color:</label>
+                                    <input type="color" class="form-control" id="editTextColor" value="#ffffff">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- MODAL FOOTER -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                        <button type="button" id="modalEditEventButton" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
